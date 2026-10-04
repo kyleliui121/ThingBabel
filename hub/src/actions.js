@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 
 // 指令服务：生成 action_id → 发 MQTT → 等回执，超时置 timeout（协议 §5）
-export function createActions({ publish, db, timeoutMs = 5000 }) {
+// bus 可选：回执被接受时 emit 'receipt' 事件，agent 的 waitResult 据此即时返回（免轮询等待）
+export function createActions({ publish, db, timeoutMs = 5000, bus = null }) {
   const timers = new Map()
   return {
     dispatch(deviceId, name, params = {}) {
@@ -28,6 +29,7 @@ export function createActions({ publish, db, timeoutMs = 5000 }) {
       if (!changes) return false // 已终态（迟到回执）：不改库、不广播
       const t = timers.get(actionId)
       if (t) { clearTimeout(t); timers.delete(actionId) }
+      bus?.emit('receipt', { action_id: actionId, device_id: a.device_id, action_name: a.action_name, status, message })
       return true // 返回值决定是否广播 SSE——拒收的消息不得让展示层"假成功"
     }
   }

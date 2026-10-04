@@ -1,7 +1,7 @@
 # 协议 0.2 草案：deadband 差值上报 + 心跳兜底
 
 状态：设计稿（2026-10-04，依据优化报告 #4）；随 ESP32 固件一并实现与验收。
-依据：`docs/research/2026-10-04-hub-and-device-optimizations.md`——工业侧 UMH 的 dead-band
+依据：优化调研报告（私有目录）——工业侧 UMH 的 dead-band
 （内置可配心跳）与学术侧 Miskowicz 的 send-on-delta 双重背书；稳态消息量可降一个数量级，
 电池设备为必选项。
 

@@ -1,0 +1,35 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22, 24] # 20 = glob 前的最低支持线，24 = 开发主力版本
+    defaults:
+      run:
+        working-directory: hub
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: 安装依赖（hub + mock 设备）
+        run: |
+          npm install
+          npm install --prefix ../devices/mock
+      - name: 生成 config.json
+        run: cp config.example.json config.json
+      - name: 跑测试
+        run: npm test
+      - name: 冒烟：中枢能启动并监听端口
+        run: |
+          node scripts/dev.js &
+          sleep 5
+          curl -sf http://127.0.0.1:3000/api/login -X POST -H 'Content-Type: application/json' -d '{"password":"lab123"}' > /dev/null
+          echo "smoke ok"

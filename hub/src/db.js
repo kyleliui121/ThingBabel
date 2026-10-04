@@ -16,7 +16,7 @@ export function createDb(file = ':memory:') {
       last_seen TEXT, created_at TEXT, updated_at TEXT);
     CREATE TABLE IF NOT EXISTS telemetry(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      device_id TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, ts TEXT NOT NULL);
+      device_id TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, value_num REAL, ts TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS idx_telemetry ON telemetry(device_id, key, id);
     CREATE TABLE IF NOT EXISTS actions_log(
       action_id TEXT PRIMARY KEY, device_id TEXT NOT NULL, action_name TEXT NOT NULL,
@@ -32,8 +32,10 @@ export function createDb(file = ':memory:') {
       status TEXT NOT NULL DEFAULT 'unset', status_message TEXT DEFAULT '');
     CREATE INDEX IF NOT EXISTS idx_traces ON traces(trace_id, start_ms);
   `)
+  // 旧库迁移：v0.1.6 之前建的 telemetry 没有 value_num 列（评审第五轮：数值分析需要 REAL）
+  try { db.exec('ALTER TABLE telemetry ADD COLUMN value_num REAL') } catch {} // 列已存在则忽略
 
-  const insertTeleStmt = db.prepare('INSERT INTO telemetry(device_id,key,value,ts) VALUES(?,?,?,?)')
+  const insertTeleStmt = db.prepare('INSERT INTO telemetry(device_id,key,value,value_num,ts) VALUES(?,?,?,?,?)')
   // 同一轮事件循环内到达的遥测合并为一个事务落盘（突发即批量，优化报告 #1）；
   // 读路径先冲刷，保证 API/测试永远读不到滞留的内存数据
   let pendingTele = []
@@ -42,7 +44,10 @@ export function createDb(file = ':memory:') {
     const rows = pendingTele
     pendingTele = []
     db.transaction(rows => {
-      for (const r of rows) insertTeleStmt.run(r.deviceId, r.key, r.value, r.ts)
+      for (const r of rows) {
+        const num = Number(r.value) // 双写：可数值化的存 REAL 供聚合/画曲线，原文存 TEXT 保真
+        insertTeleStmt.run(r.deviceId, r.key, r.value, Number.isFinite(num) ? num : null, r.ts)
+      }
     })(rows)
   }
 
@@ -88,13 +93,13 @@ export function createDb(file = ':memory:') {
     },
     latestProps(deviceId) {
       flushTele()
-      return db.prepare(`SELECT key, value, ts FROM telemetry
+      return db.prepare(`SELECT key, value, value_num, ts FROM telemetry
         WHERE device_id=? AND id IN (SELECT MAX(id) FROM telemetry WHERE device_id=? GROUP BY key)`)
         .all(deviceId, deviceId)
     },
     propHistory(deviceId, key, limit = 100) {
       flushTele()
-      return db.prepare('SELECT value, ts FROM telemetry WHERE device_id=? AND key=? ORDER BY id DESC LIMIT ?')
+      return db.prepare('SELECT value, value_num, ts FROM telemetry WHERE device_id=? AND key=? ORDER BY id DESC LIMIT ?')
         .all(deviceId, key, limit)
     },
     countTelemetry() {

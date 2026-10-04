@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { startStack, wait } from './helpers.js'
+import { startStack, wait } from '../test-support/stack.js'
 
 // props/status 对未登记设备直接忽略，因此测试先发一条合法 discovery
 const intro = {

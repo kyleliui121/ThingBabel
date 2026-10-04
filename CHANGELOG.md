@@ -5,12 +5,22 @@ README、论文文档、汇报材料只引用本文件，不再手写数字—�
 
 从 zip 开始：先在 `hub/`、`5-电脑设备端/mock-sensor/` 各自 `npm install`，否则测试起不来。
 
+## v0.1.7 — 2026-10-05（评审第五轮：可复现性与 CI）
+
+- **70 tests pass（node --test），0 fail**；静态 `test()` 计数 = 70，与 runner 一致
+- **GitHub Actions CI**（`.github/workflows/test.yml`）：Node 20/22/24 矩阵，装依赖 → 生成 config.json → 跑测试 + 登录冒烟——"N tests pass"从作者机器声明变成第三方可验证事实
+- **Node 20 兼容修复**：`npm test` 从带引号 glob（Node 22+ 才展开，Node 20 报 Could not find）改为默认发现式；`engines` 钉 node>=20；支撑文件移出 `test/`（`test-support/stack.js`）——目录形式与默认形式的计数不再分裂
+- **库代码不杀进程**：`loadConfig` 缺文件改抛错（新增测试），`process.exit` 收敛到 CLI 入口专用 `loadConfigOrExit`；评测 runner 注入 callLLM 时不再触碰 config.json——干净解压环境下全量测试可跑
+- 遥测双写 `value_num REAL`（数值属性聚合/曲线可用，非数值存 NULL；旧库 ALTER 自动迁移）
+- 回执等待新增 bus 'receipt' 事件通道（即时唤醒，轮询 150ms 降为兜底）——M4 延迟分解数据更干净
+- 行尾统一：`.gitattributes`（LF）+ renormalize
+
 ## v0.1.6 — 2026-10-05（公开仓内容裁剪）
 
-- 论文与调研文档移出公开仓：`docs/research/`（四份调研报告）与 `docs/paper/`（实验设计、指标口径）转入仓库外私有保管（`private/`，已 gitignore）——防止抢先披露与双盲审稿问题
-- 历史清除：`docs/research` 与 `docs/paper` 已从**全部提交历史**中移除（git filter-branch + 强制推送），仅浏览旧提交亦不可见
-- BACKLOG 的论文线小节改为私有指针；README 中英双语的相关引用同步清理；工程侧 BACKLOG 条目（含已完成记录）经备份后精简
-- 已知边界：不变（ESP32 未验证 / LLM 待 key）
+- 论文与调研文档移出公开仓：`docs/research/`（三份调研报告）与 `docs/paper/`（实验设计、指标口径）转入仓库外私有保管（`private/`，已 gitignore）——防止抢先披露与双盲审稿问题
+- 历史清除：上述目录已从**全部提交历史**中移除（git filter-branch + 强制推送），仅浏览旧提交亦不可见
+- BACKLOG 的论文线小节改为私有指针；README 中英双语的相关引用同步清理
+- **勘误**：本条目在 v0.1.6 当次曾因 filter-branch 工作区重置而丢失，v0.1.7 补录
 
 ## v0.1.5 — 2026-10-05（GitHub 开源准备）
 

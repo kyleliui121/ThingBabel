@@ -1,7 +1,7 @@
 // AI 编排 CLI：node src/agent/cli.js "自然语言任务"
 // 需 hub 的 broker 可达（默认本机 1883）且 config.json 已填 llm.apiKey
 import mqtt from 'mqtt'
-import { loadConfig } from '../config.js'
+import { loadConfigOrExit } from '../config.js'
 import { createDb } from '../db.js'
 import { createActions } from '../actions.js'
 import { createAgent } from './index.js'
@@ -10,7 +10,7 @@ import { createLlm } from './llm.js'
 const task = process.argv.slice(2).join(' ')
 if (!task) { console.error('用法：node src/agent/cli.js "自然语言任务"'); process.exit(1) }
 
-const config = loadConfig()
+const config = loadConfigOrExit()
 if (!config.llm.apiKey) { console.error('请先在 hub/config.json 的 llm.apiKey 填入 BigModel API Key'); process.exit(1) }
 
 const db = createDb(config.dbFile)

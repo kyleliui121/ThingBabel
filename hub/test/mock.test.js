@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { startStack, wait } from './helpers.js'
+import { startStack, wait } from '../test-support/stack.js'
 
 const root = path.resolve(fileURLToPath(import.meta.url), '../../../')
 const mockEntry = path.join(root, 'devices/mock/mock-sensor.js')

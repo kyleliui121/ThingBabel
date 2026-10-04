@@ -1,11 +1,12 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+// 库代码不杀进程（评审第五轮）：缺文件/解析失败抛错，由调用方决定处置；
+// process.exit 只允许出现在 CLI 入口（用 loadConfigOrExit）
 export function loadConfig(file = 'config.json') {
   const p = path.resolve(process.cwd(), file)
   if (!fs.existsSync(p)) {
-    console.error(`缺少配置文件 ${p}，请复制 config.example.json 为 config.json 后修改`)
-    process.exit(1)
+    throw new Error(`缺少配置文件 ${p}，请复制 config.example.json 为 config.json 后修改`)
   }
   const c = JSON.parse(fs.readFileSync(p, 'utf8'))
   const merged = {
@@ -33,4 +34,10 @@ export function configWarnings(c) {
   if (c.adminPassword === 'lab123') w.push('adminPassword 使用默认值 lab123，局域网内任何人可登录')
   if (c.jwtSecret === 'dev-secret-change-me') w.push('jwtSecret 使用默认值，token 可被伪造')
   return w
+}
+
+// CLI 入口专用：加载失败打印并退出；库代码一律用 loadConfig() 并捕获异常
+export function loadConfigOrExit(file = 'config.json') {
+  try { return loadConfig(file) }
+  catch (e) { console.error('[config]', e.message); process.exit(1) }
 }

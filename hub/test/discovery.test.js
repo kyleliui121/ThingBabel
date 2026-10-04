@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { startStack, wait } from './helpers.js'
+import { startStack, wait } from '../test-support/stack.js'
 
 const intro = {
   proto_ver: 1, device_id: 'sensor-01', name: '实验室温湿度', type: 'sensor',

@@ -4,7 +4,7 @@
 import { buildRegistry, selectTools, validateParams } from './map.js'
 import { createTrace } from './trace.js'
 
-export function createAgent({ db, actions, callLLM, confirm = async () => true, maxSteps = 5, resultWaitMs = 6500, llmInfo = {}, toolMode = 'all', registry: registryOverride = null }) {
+export function createAgent({ db, actions, callLLM, confirm = async () => true, maxSteps = 5, resultWaitMs = 6500, llmInfo = {}, toolMode = 'all', registry: registryOverride = null, bus = null }) {
 
   async function run(task) {
     const trace = createTrace('agent.task', {
@@ -41,7 +41,7 @@ export function createAgent({ db, actions, callLLM, confirm = async () => true, 
 
       messages.push({ role: 'assistant', content: res?.content || '', tool_calls: calls })
       for (const tc of calls) {
-        const out = await execTool(tc, { db, actions, confirm, resultWaitMs, trace, parent: llmSpan })
+        const out = await execTool(tc, { db, actions, confirm, resultWaitMs, trace, parent: llmSpan, bus })
         log.push({ tool: tc.function.name, ...out }) // out 含 params，供评测做参数级断言
         messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(out) })
       }
@@ -51,12 +51,12 @@ export function createAgent({ db, actions, callLLM, confirm = async () => true, 
   return { run }
 }
 
-async function execTool(tc, { db, actions, confirm, resultWaitMs, trace, parent }) {
+async function execTool(tc, { db, actions, confirm, resultWaitMs, trace, parent, bus }) {
   const toolSpan = trace.span(`tool ${tc.function.name}`, { 'gen_ai.tool.name': tc.function.name }, parent)
   let args = {}
   try { args = JSON.parse(tc.function.arguments || '{}') } catch {}
   const name = tc.function.name
-  const out = await doTool(name, args, { db, actions, confirm, resultWaitMs })
+  const out = await doTool(name, args, { db, actions, confirm, resultWaitMs, bus })
   toolSpan.end({
     'lab.status': out.status,
     'lab.message': (out.message || '').slice(0, 200),
@@ -66,7 +66,7 @@ async function execTool(tc, { db, actions, confirm, resultWaitMs, trace, parent 
   return { params: args, ...out } // params 供评测做参数级断言
 }
 
-async function doTool(name, args, { db, actions, confirm, resultWaitMs }) {
+async function doTool(name, args, { db, actions, confirm, resultWaitMs, bus }) {
   if (name === 'lab_get_device_state') {
     const d = db.getDevice(args.device_id)
     if (!d) return { status: 'error', message: `设备 ${args.device_id} 不存在` }
@@ -105,21 +105,31 @@ async function doTool(name, args, { db, actions, confirm, resultWaitMs }) {
     return { status: 'rejected', device_id: deviceId, message: '人工确认拒绝执行' }
 
   const { action_id } = actions.dispatch(deviceId, actionName, args)
-  const fin = await waitResult(db, action_id, resultWaitMs)
+  const fin = await waitResult(db, action_id, resultWaitMs, bus)
   return { status: fin.status, device_id: deviceId, message: fin.message || '', action_id }
 }
 
-// 轮询指令状态直到非 pending 或超时（hub 自身 5 秒超时兜底，此处略晚于它）
-function waitResult(db, actionId, deadlineMs) {
+// 等待回执：bus 'receipt' 事件即时唤醒（免轮询，M4 延迟数据更干净）；轮询作兜底
+// （无 bus 场景/事件丢失），双通道都挂：db 状态为准，hub 自身 5 秒超时兜底，此处略晚于它
+function waitResult(db, actionId, deadlineMs, bus = null) {
   return new Promise(resolve => {
+    let done = false
     const t0 = Date.now()
-    const tick = () => {
-      const a = db.getAction(actionId)
-      if (!a) return resolve({ status: 'error', message: '指令记录丢失' })
-      if (a.status !== 'pending') return resolve(a)
-      if (Date.now() - t0 > deadlineMs) return resolve({ status: 'timeout', message: '等待回执超时' })
-      setTimeout(tick, 150)
+    const finish = a => {
+      if (done) return
+      done = true
+      bus?.off?.('receipt', onReceipt)
+      clearInterval(iv)
+      resolve(a)
     }
-    tick()
+    const check = () => {
+      const a = db.getAction(actionId)
+      if (!a) return finish({ status: 'error', message: '指令记录丢失' })
+      if (a.status !== 'pending') return finish(a)
+      if (Date.now() - t0 > deadlineMs) return finish({ status: 'timeout', message: '等待回执超时' })
+    }
+    const onReceipt = e => { if (e.action_id === actionId) check() }
+    bus?.on('receipt', onReceipt)
+    const iv = setInterval(check, 150)
   })
 }

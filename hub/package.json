@@ -2,8 +2,11 @@
   "name": "lab-hub",
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "test": "node --test \"test/*.test.js\"",
+    "test": "node --test",
     "dev": "node scripts/dev.js",
     "soak": "node scripts/soak.js",
     "fleet": "node scripts/fleet.js",

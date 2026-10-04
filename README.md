@@ -35,8 +35,8 @@ Web/电视大屏查看，CLI/Agent 用自然语言指挥一切。
 | `devices/esp32/` | ESP32 固件模板（espMqttClient） | **开发板端**参考（未硬件验证） |
 | `devices/mock/` | Node.js 模拟传感器 | 任何电脑/树莓派上的**脚本设备**模板 |
 | `hub/src/agent/` | AI 编排：能力清单零转换成 LLM tool schema + 指令回执闭环 | 自然语言任务入口 |
-| `hub/eval/` | 评测基建：30 任务集、runner、M5 批量、精确缓存 | 复现实验 |
-| `docs/` | 设计文档与工程规划（BACKLOG） | 背景与规划 |
+| `hub/eval/` | 论文评测基建：30 任务集、runner、M5 批量、精确缓存 | 复现实验 |
+| `docs/` | 设计文档、调研报告、论文实验设计、BACKLOG | 背景与规划 |
 
 ## 三类消费者怎么接入（复用路径）
 
@@ -60,7 +60,7 @@ cd devices/mock && npm start      # 终端2：模拟传感器，上线即自动�
 
 ## 状态
 
-- hub 测试通过数与版本事实以 [CHANGELOG.md](CHANGELOG.md) 为唯一来源（当前 v0.1.6）
+- hub 测试通过数与版本事实以 [CHANGELOG.md](CHANGELOG.md) 为唯一来源（当前 v0.1.7）
 - WS 接入路径已端到端验证（浏览器方式连 9001 → 自动登记 → 遗嘱生效）
 - ⚠️ ESP32 固件是**未硬件验证的模板**；LLM 真机调用待填 API key
 - 局域网专用，勿暴露公网（协议 §9）

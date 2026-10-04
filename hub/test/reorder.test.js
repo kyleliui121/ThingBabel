@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { startStack, wait } from './helpers.js'
+import { startStack, wait } from '../test-support/stack.js'
 
 // 复现真实时序：QoS 0 遥测先于 QoS 1 discovery 到达（新设备上电三连发 / retain 重放均会出现），
 // 重排缓冲应把先到的未知设备消息暂存，登记成功后补处理

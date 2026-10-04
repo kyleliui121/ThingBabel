@@ -1,6 +1,6 @@
 import mqtt from 'mqtt'
 import { EventEmitter } from 'node:events'
-import { loadConfig } from './config.js'
+import { loadConfigOrExit } from './config.js'
 import { createDb } from './db.js'
 import { createActions } from './actions.js'
 import { makeHandlers, route } from './router.js'
@@ -10,17 +10,17 @@ import { startWatchdog } from './watchdog.js'
 import { createReorderBuffer } from './reorder.js'
 import { createAnomalyDetector } from './anomaly.js'
 
-const config = loadConfig()
+const config = loadConfigOrExit()
 const db = createDb(config.dbFile)
 db.failPendingActions() // 重启时清空悬挂指令（设计稿 §7）
 db.setAllOffline() // 启动一律视为离线，retain 重放（status/props）纠正真实在线者——消除重放顺序依赖（BACKLOG #1）
 
 const client = mqtt.connect(config.mqttUrl)
+const bus = new EventEmitter() // 设备消息 → SSE 推送；回执 → agent 免轮询等待
 const actions = createActions({
   publish: (t, p, opts) => client.publish(t, p, { qos: 1, ...opts }),
-  db, timeoutMs: 5000
+  db, timeoutMs: 5000, bus
 })
-const bus = new EventEmitter() // 设备消息 → SSE 推送（/api/stream）
 const handlers = makeHandlers({ db, actions, bus })
 const reorder = createReorderBuffer() // QoS0 抢在 discovery 前到达的消息暂存（见 reorder.js）
 const anomaly = createAnomalyDetector({ // 数值遥测偏离滚动均值 → event（agent/手机端可消费）

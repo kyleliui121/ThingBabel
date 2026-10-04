@@ -6,6 +6,7 @@ import net from 'node:net'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { EventEmitter } from 'node:events'
 import aedes from 'aedes'
 import mqtt from 'mqtt'
 import { loadConfig } from '../src/config.js'
@@ -58,7 +59,8 @@ export async function runEval(options = {}) {
   const port = server.address().port
   const db = createDb(':memory:')
   const hub = mqtt.connect(`mqtt://127.0.0.1:${port}`)
-  const actions = createActions({ publish: (t, p, x) => hub.publish(t, p, { qos: 1, ...x }), db, timeoutMs: 5000 })
+  const bus = new EventEmitter()
+  const actions = createActions({ publish: (t, p, x) => hub.publish(t, p, { qos: 1, ...x }), db, timeoutMs: 5000, bus })
   const handlers = makeHandlers({ db, actions })
   const reorder = createReorderBuffer()
   hub.on('connect', () => hub.subscribe('lab/#'))
@@ -128,13 +130,20 @@ export async function runEval(options = {}) {
     prompt: `你是实验室设备编排助手。设备：${JSON.stringify(B2_CAPS)}。规则：只使用提供的工具；执行结果以工具返回为准。`
   }
 
-  let callLLM = o.callLLM ?? createLlm(loadConfig().llm)
+  // LLM 调用：注入 callLLM（测试场景）则不触碰 config.json——干净环境下测试照常跑
+  let callLLM = o.callLLM
+  let llmInfo = { system: 'unknown', model: 'unknown' }
+  if (!callLLM) {
+    const cfg = loadConfig()
+    callLLM = createLlm(cfg.llm)
+    llmInfo = { system: 'bigmodel', model: cfg.llm.model }
+  }
   callLLM = withExactCache(callLLM) // k 次重复的成本杠杆（实验设计 §3.3 纪律②）
 
   const agent = createAgent({
-    db, actions, callLLM, toolMode: o.toolMode,
+    db, actions, callLLM, toolMode: o.toolMode, bus,
     registry: o.baseline === 'b2' ? b2Reg : null,
-    llmInfo: { system: 'bigmodel', model: loadConfig().llm.model }
+    llmInfo
   })
 
   // ── 执行 + 判分 ──

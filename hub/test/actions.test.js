@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { startStack, wait } from './helpers.js'
+import { startStack, wait } from '../test-support/stack.js'
 import { createActions, __test } from '../src/actions.js'
 import { createDb } from '../src/db.js'
 import { handleResult } from '../src/handlers/result.js'
@@ -71,6 +71,19 @@ test('回执安全：跨设备伪造回执被忽略，非法 status 枚举被忽
 
   handleResult(actions, null, 'd1', 'reboot', JSON.stringify({ action_id, status: 'ok' }))
   assert.equal(db.getAction(action_id).status, 'ok')
+})
+
+test('回执事件：被接受的回执在 bus 上发 receipt（agent 免轮询等待的数据通道）', () => {
+  const db = createDb(':memory:')
+  const receipts = []
+  const bus = { emit: (ev, m) => { if (ev === 'receipt') receipts.push(m) }, on: () => {}, off: () => {} }
+  const actions = createActions({ publish: () => {}, db, timeoutMs: 1000, bus })
+  const { action_id } = actions.dispatch('d1', 'set_speed', {})
+  actions.onResult(action_id, 'ok', '', 'd1', 'set_speed')
+  assert.equal(receipts.length, 1)
+  assert.equal(receipts[0].action_id, action_id)
+  assert.equal(receipts[0].action_name, 'set_speed')
+  assert.equal(receipts[0].status, 'ok')
 })
 
 test('未知 action_id 的回执被忽略（重放/伪造防护）', () => {

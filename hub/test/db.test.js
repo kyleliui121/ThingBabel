@@ -22,11 +22,16 @@ test('遥测入库与最新值/历史查询', () => {
   db.insertTelemetry('sensor-01', 'temperature', '23.5', '2026-10-04T10:00:00Z')
   db.insertTelemetry('sensor-01', 'temperature', '24.0', '2026-10-04T10:00:05Z')
   db.insertTelemetry('sensor-01', 'humidity', '45', '2026-10-04T10:00:05Z')
+  db.insertTelemetry('sensor-01', 'door', '"open"', '2026-10-04T10:00:06Z') // 非数值：value_num 应为 NULL
   const latest = db.latestProps('sensor-01')
   assert.equal(latest.find(p => p.key === 'temperature').value, '24.0')
+  // 双写断言（评审第五轮）：数值属性有 value_num 供聚合/曲线，非数值为 NULL
+  assert.equal(latest.find(p => p.key === 'temperature').value_num, 24.0)
+  assert.equal(latest.find(p => p.key === 'door').value_num, null)
   const hist = db.propHistory('sensor-01', 'temperature', 10)
   assert.equal(hist.length, 2)
   assert.equal(hist[0].value, '24.0')
+  assert.equal(hist[0].value_num, 24.0)
 })
 
 test('指令日志状态机：pending→ok，迟到回执不覆盖 timeout', () => {

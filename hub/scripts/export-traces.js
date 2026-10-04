@@ -3,10 +3,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { loadConfig } from '../src/config.js'
+import { loadConfigOrExit } from '../src/config.js'
 import { createDb } from '../src/db.js'
 
-const config = loadConfig()
+const config = loadConfigOrExit()
 const db = createDb(config.dbFile)
 const list = db.listTraces(500)
 const traces = list.map(t => ({ trace_id: t.trace_id, task: t.task, spans: db.getTrace(t.trace_id) }))
