@@ -46,3 +46,28 @@ test('启动时把 pending 指令清为 timeout', () => {
   db.failPendingActions()
   assert.equal(db.getAction('a3').status, 'timeout')
 })
+
+test('遥测批量事务：读路径自动冲刷，同轮插入合并落盘', async () => {
+  const db = createDb(':memory:')
+  db.insertTelemetry('sensor-01', 'temperature', '23.5', '2026-10-04T10:00:00Z')
+  db.insertTelemetry('sensor-01', 'humidity', '45', '2026-10-04T10:00:01Z')
+  // 不等 nextTick 直接读——读前必须冲刷，API 不能读到滞留内存的数据
+  assert.equal(db.latestProps('sensor-01').length, 2)
+  await new Promise(r => process.nextTick(r))
+  assert.equal(db.propHistory('sensor-01', 'temperature', 10).length, 1)
+  assert.equal(db.propHistory('sensor-01', 'humidity', 10)[0].value, '45')
+})
+
+test('prune 按时间清理遥测与事件，返回清理条数', () => {
+  const db = createDb(':memory:')
+  const old = '2026-01-01T00:00:00Z'
+  const fresh = new Date().toISOString()
+  db.insertTelemetry('sensor-01', 'temperature', '1', old)
+  db.insertTelemetry('sensor-01', 'temperature', '2', fresh)
+  db.insertEvent('sensor-01', 'alarm', '{}', old)
+  db.insertEvent('sensor-01', 'alarm', '{}', fresh)
+  const r = db.prune('2026-06-01T00:00:00Z')
+  assert.equal(r.telemetry, 1)
+  assert.equal(r.events, 1)
+  assert.equal(db.propHistory('sensor-01', 'temperature', 10).length, 1)
+})

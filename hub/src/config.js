@@ -13,6 +13,7 @@ export function loadConfig(file = 'config.json') {
     mqttUrl: c.mqttUrl ?? 'mqtt://127.0.0.1:1883',
     dbFile: c.dbFile ?? 'data.db',
     adminPassword: c.adminPassword ?? 'lab123',
-    jwtSecret: c.jwtSecret ?? 'dev-secret-change-me'
+    jwtSecret: c.jwtSecret ?? 'dev-secret-change-me',
+    retentionDays: c.retentionDays ?? 90 // 遥测/事件保留天数，0 = 不清理
   }
 }

@@ -5,6 +5,7 @@ const now = () => new Date().toISOString()
 export function createDb(file = ':memory:') {
   const db = new Database(file)
   db.pragma('journal_mode = WAL')
+  db.pragma('synchronous = NORMAL') // WAL 下官方推荐档：省掉每次提交的 fsync，断电最多丢最后一批提交、库不损坏
   db.exec(`
     CREATE TABLE IF NOT EXISTS devices(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,6 +26,19 @@ export function createDb(file = ':memory:') {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       device_id TEXT NOT NULL, name TEXT NOT NULL, payload_json TEXT NOT NULL, ts TEXT NOT NULL);
   `)
+
+  const insertTeleStmt = db.prepare('INSERT INTO telemetry(device_id,key,value,ts) VALUES(?,?,?,?)')
+  // 同一轮事件循环内到达的遥测合并为一个事务落盘（突发即批量，优化报告 #1）；
+  // 读路径先冲刷，保证 API/测试永远读不到滞留的内存数据
+  let pendingTele = []
+  const flushTele = () => {
+    if (!pendingTele.length) return
+    const rows = pendingTele
+    pendingTele = []
+    db.transaction(rows => {
+      for (const r of rows) insertTeleStmt.run(r.deviceId, r.key, r.value, r.ts)
+    })(rows)
+  }
 
   return {
     upsertDevice(d) {
@@ -49,17 +63,26 @@ export function createDb(file = ':memory:') {
       return db.prepare('SELECT * FROM devices ORDER BY device_id').all()
     },
     insertTelemetry(deviceId, key, value, ts) {
-      db.prepare('INSERT INTO telemetry(device_id,key,value,ts) VALUES(?,?,?,?)')
-        .run(deviceId, key, String(value), ts)
+      pendingTele.push({ deviceId, key, value: String(value), ts })
+      process.nextTick(flushTele)
     },
     latestProps(deviceId) {
+      flushTele()
       return db.prepare(`SELECT key, value, ts FROM telemetry
         WHERE device_id=? AND id IN (SELECT MAX(id) FROM telemetry WHERE device_id=? GROUP BY key)`)
         .all(deviceId, deviceId)
     },
     propHistory(deviceId, key, limit = 100) {
+      flushTele()
       return db.prepare('SELECT value, ts FROM telemetry WHERE device_id=? AND key=? ORDER BY id DESC LIMIT ?')
         .all(deviceId, key, limit)
+    },
+    prune(cutoffIso) {
+      flushTele()
+      const t = db.prepare('DELETE FROM telemetry WHERE ts < ?').run(cutoffIso)
+      const e = db.prepare('DELETE FROM events WHERE ts < ?').run(cutoffIso)
+      db.pragma('wal_checkpoint(TRUNCATE)') // 清理后收编 WAL 文件（优化报告 #2）
+      return { telemetry: t.changes, events: e.changes }
     },
     createAction(a) {
       db.prepare(`INSERT INTO actions_log(action_id,device_id,action_name,params_json,status,created_at,updated_at)
