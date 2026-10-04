@@ -1,7 +1,7 @@
 // C2 编排循环（论文实验设计 §3.3）：自然语言任务 → LLM 规划 → 指令下发 → 回执 → 汇报。
 // callLLM 为注入的模型适配器（测试注入脚本化假模型，生产用 llm.js 的 GLM 适配器）。
 // 全程产出 OTel GenAI 兼容 trace（trace.js），返回值带 trace_id 供查询回放（实验设计 §3.5）
-import { buildRegistry, selectTools } from './map.js'
+import { buildRegistry, selectTools, validateParams } from './map.js'
 import { createTrace } from './trace.js'
 
 export function createAgent({ db, actions, callLLM, confirm = async () => true, maxSteps = 5, resultWaitMs = 6500, llmInfo = {}, toolMode = 'all', registry: registryOverride = null }) {
@@ -42,7 +42,7 @@ export function createAgent({ db, actions, callLLM, confirm = async () => true, 
       messages.push({ role: 'assistant', content: res?.content || '', tool_calls: calls })
       for (const tc of calls) {
         const out = await execTool(tc, { db, actions, confirm, resultWaitMs, trace, parent: llmSpan })
-        log.push({ tool: tc.function.name, ...out })
+        log.push({ tool: tc.function.name, ...out }) // out 含 params，供评测做参数级断言
         messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(out) })
       }
     }
@@ -63,7 +63,7 @@ async function execTool(tc, { db, actions, confirm, resultWaitMs, trace, parent 
     ...(out.action_id ? { 'lab.action_id': out.action_id } : {}),
     ...(out.device_id ? { 'lab.device_id': out.device_id } : {})
   }, out.status === 'ok' ? 'ok' : 'error')
-  return out
+  return { params: args, ...out } // params 供评测做参数级断言
 }
 
 async function doTool(name, args, { db, actions, confirm, resultWaitMs }) {
@@ -92,8 +92,14 @@ async function doTool(name, args, { db, actions, confirm, resultWaitMs }) {
   // LLM 幻觉或注入的 deviceId__anything 在这里被拦下，到不了 MQTT
   let caps = {}
   try { caps = JSON.parse(d.caps_json) } catch {}
-  if (!(caps.actions || []).some(a => a.name === actionName))
+  const declared = (caps.actions || []).find(a => a.name === actionName)
+  if (!declared)
     return { status: 'rejected', device_id: deviceId, message: `设备 ${deviceId} 未声明指令 ${actionName}，拒绝下发` }
+
+  // 参数级授权（评审第二轮）：参数必须落在设备声明的能力域内（required/min/max/enum/type）
+  const paramError = validateParams(declared, args)
+  if (paramError)
+    return { status: 'rejected', device_id: deviceId, message: `参数越界，拒绝下发：${paramError}` }
 
   if (!(await confirm({ device_id: deviceId, action: actionName, params: args })))
     return { status: 'rejected', device_id: deviceId, message: '人工确认拒绝执行' }

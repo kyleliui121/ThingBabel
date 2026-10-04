@@ -1,7 +1,23 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { capsToTools, buildRegistry, selectTools } from '../src/agent/map.js'
+import { capsToTools, buildRegistry, selectTools, validateParams } from '../src/agent/map.js'
 import { createDb } from '../src/db.js'
+
+const speedAction = { name: 'set_speed', description: '调速', params: [{ name: 'level', type: 'number', required: true, min: 0, max: 3 }] }
+const modeAction = { name: 'set_mode', description: '模式', params: [{ name: 'mode', type: 'enum', enum: ['fast', 'slow'] }] }
+
+test('validateParams：必填/越界/枚举/类型逐项拦截，合法放行', () => {
+  assert.match(validateParams(speedAction, { level: 999999 }), /超过上限/)
+  assert.match(validateParams(speedAction, { level: -1 }), /低于下限/)
+  assert.match(validateParams(speedAction, {}), /缺少必填/)
+  assert.match(validateParams(speedAction, { level: 'abc' }), /必须是数值/)
+  assert.equal(validateParams(speedAction, { level: 2 }), null)
+  assert.match(validateParams(modeAction, { mode: 'turbo' }), /不在允许值/)
+  assert.equal(validateParams(modeAction, { mode: 'fast' }), null)
+  // 未声明 min/max 的纯 number 只查有限性；可选参数缺省放行
+  assert.equal(validateParams({ name: 'x', params: [{ name: 't', type: 'number' }] }, { t: 1.5 }), null)
+  assert.equal(validateParams({ name: 'x', params: [{ name: 'opt' }] }, {}), null)
+})
 
 const caps = {
   proto_ver: 1, device_id: 'arm-01', name: '机械臂', type: 'arm',

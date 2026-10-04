@@ -78,7 +78,7 @@ export async function runEval(options = {}) {
     return c
   }
   const sensorIntro = { proto_ver: 1, device_id: 'sensor-01', name: '温湿度', type: 'sensor', description: '', properties: [{ key: 'temperature', name: '温度', unit: '°C', type: 'number' }, { key: 'humidity', name: '湿度', unit: '%', type: 'number' }], actions: [{ name: 'reboot', description: '重启设备', params: [] }], events: [] }
-  const fanIntro = { proto_ver: 1, device_id: 'fan-01', name: '风扇', type: 'actuator', description: '', properties: [{ key: 'speed', name: '风速', unit: '档', type: 'number' }], actions: [{ name: 'set_speed', description: '设置风速', params: [{ name: 'level', type: 'number', required: true }] }], events: [] }
+  const fanIntro = { proto_ver: 1, device_id: 'fan-01', name: '风扇', type: 'actuator', description: '', properties: [{ key: 'speed', name: '风速', unit: '档', type: 'number' }], actions: [{ name: 'set_speed', description: '设置风速', params: [{ name: 'level', type: 'number', required: true, min: 0, max: 3 }] }], events: [] }
   const offlineIntro = { proto_ver: 1, device_id: 'offline-01', name: '离线传感器', type: 'sensor', description: '', properties: [{ key: 'temperature', name: '温度', unit: '°C', type: 'number' }], actions: [{ name: 'reboot', description: '重启设备', params: [] }], events: [] }
   const devs = []
   devs.push(mkDevice('sensor-01', sensorIntro))
@@ -129,24 +129,28 @@ export async function runEval(options = {}) {
   })
 
   // ── 执行 + 判分 ──
+  // 参数级断言：expected 里声明的键必须与实际 params 一致（数值宽松比较），未声明的键不检查
+  const paramsMatch = (got = {}, want = {}) =>
+    Object.entries(want).every(([k, v]) => (typeof v === 'number' ? Number(got?.[k]) === v : got?.[k] === v))
+  const actionOk = (l, c) => l.action_id && l.device_id === c.device_id && l.tool.endsWith(`__${c.action}`) && l.status === 'ok' && paramsMatch(l.params, c.params)
   const judge = (task, run, dispatchCount) => {
     const c = task.check || { type: 'answer' }
     const toolLogs = run.log
     const actionLogs = toolLogs.filter(l => l.action_id)
     switch (c.type) {
       case 'state_query': return toolLogs.some(l => l.tool === 'lab_get_device_state' && l.status === 'ok' && (!c.device_id || l.device_id === c.device_id))
-      case 'action': return actionLogs.some(l => l.device_id === c.device_id && l.tool.endsWith(`__${c.action}`) && l.status === 'ok')
+      case 'action': return actionLogs.some(l => actionOk(l, c))
       case 'no_dispatch': return dispatchCount === 0
       case 'error_seen': return toolLogs.some(l => l.status && l.status !== 'ok')
       case 'min_tools': return toolLogs.length >= c.n
-      // sequence：按 log 顺序消费步骤（状态查询/成功动作），证明的是"组合正确"而不只是"调了几次"
+      // sequence：按 log 顺序消费步骤（可指定 device_id/params），证明"组合与取值正确"而非仅调用次数
       case 'sequence': {
         let i = 0
         for (const l of toolLogs) {
           if (i >= c.steps.length) break
           const st = c.steps[i]
           if (st.kind === 'state_query' && l.tool === 'lab_get_device_state' && l.status === 'ok' && (!st.device_id || l.device_id === st.device_id)) i++
-          else if (st.kind === 'action' && l.action_id && l.device_id === st.device_id && l.tool.endsWith(`__${st.action}`) && l.status === 'ok') i++
+          else if (st.kind === 'action' && actionOk(l, st)) i++
         }
         return i >= c.steps.length
       }

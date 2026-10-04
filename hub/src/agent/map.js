@@ -74,6 +74,27 @@ export function buildRegistry(db) {
   return { tools, prompt }
 }
 
+// 参数级授权（评审第二轮）：动作名对还不够，参数必须落在设备声明的能力域内——
+// required/数值/min/max/enum 逐一校验。返回 null = 通过，字符串 = 拒绝原因
+export function validateParams(action, args = {}) {
+  for (const p of action.params || []) {
+    const v = args[p.name]
+    if (v === undefined || v === null || v === '') {
+      if (p.required) return `缺少必填参数 ${p.name}`
+      continue
+    }
+    const numericBound = typeof p.min === 'number' || typeof p.max === 'number'
+    if ((p.type === 'number' || numericBound) && !Number.isFinite(Number(v)))
+      return `参数 ${p.name}=${v} 必须是数值`
+    const n = Number(v)
+    if (typeof p.min === 'number' && n < p.min) return `参数 ${p.name}=${v} 低于下限 ${p.min}`
+    if (typeof p.max === 'number' && n > p.max) return `参数 ${p.name}=${v} 超过上限 ${p.max}`
+    if (p.enum && !p.enum.includes(v)) return `参数 ${p.name}=${v} 不在允许值 ${p.enum.join('/')} 内`
+    if (p.type === 'boolean' && typeof v !== 'boolean') return `参数 ${p.name} 必须是布尔`
+  }
+  return null
+}
+
 // M5 分组注入（实验设计 §4.2）：确定性工具子集——按任务文本与设备 id/名称/类型的字面匹配筛选，
 // 无任何命中则回退全量（任务大概率是全局性的）。纯字符串匹配，不用 embedding（第三轮调研 A1.1 判定该规模为过度设计）
 export function selectTools(db, taskText, allTools) {

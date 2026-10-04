@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "node --test",
+    "test": "node --test \"test/*.test.js\"",
     "dev": "node scripts/dev.js",
     "soak": "node scripts/soak.js",
     "fleet": "node scripts/fleet.js",

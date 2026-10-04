@@ -9,6 +9,11 @@ const caps = {
   actions: [{ name: 'reboot', description: '重启设备', params: [] }],
   events: []
 }
+const fanCaps = {
+  proto_ver: 1, device_id: 'fan-01', name: '风扇', type: 'actuator',
+  properties: [], actions: [{ name: 'set_speed', description: '调速', params: [{ name: 'level', type: 'number', required: true, min: 0, max: 3 }] }],
+  events: []
+}
 
 function mkStack({ online = 1 } = {}) {
   const db = createDb(':memory:')
@@ -163,4 +168,31 @@ test('分组注入下同样受授权边界保护（toolMode=grouped 绕不过 ca
   const r = await agent.run('把门打开')
   assert.equal(s.dispatched.length, 0)
   assert.equal(r.log[0].status, 'rejected')
+})
+
+test('参数级授权：越界 level 拒发，合法 level 下发（fan-01 声明 0-3）', async () => {
+  const s = mkStack()
+  s.db.upsertDevice({ device_id: 'fan-01', name: '风扇', type: 'actuator', description: '', proto_ver: 1, caps_json: JSON.stringify(fanCaps) })
+  const mkAgent = (responses) => createAgent({ db: s.db, actions: s.actions, callLLM: scripted(responses) })
+
+  const r1 = await mkAgent([
+    { content: '', tool_calls: [call('t1', 'fan-01__set_speed', { level: 999999 })] }, // 越界
+    { content: '风速超出范围', tool_calls: [] }
+  ]).run('把风速调到最大')
+  assert.equal(s.dispatched.length, 0, '越界不得下发')
+  assert.equal(r1.log[0].status, 'rejected')
+  assert.match(r1.log[0].message, /超过上限/)
+
+  await mkAgent([
+    { content: '', tool_calls: [call('t2', 'fan-01__set_speed', { level: 2 })] },      // 合法
+    { content: '完成', tool_calls: [] }
+  ]).run('把风速调到 2')
+  assert.deepEqual(s.dispatched[0], { deviceId: 'fan-01', name: 'set_speed', params: { level: 2 } })
+
+  const r3 = await mkAgent([
+    { content: '', tool_calls: [call('t3', 'fan-01__set_speed', {})] },                // 缺必填
+    { content: '需要风速值', tool_calls: [] }
+  ]).run('随便调一下')
+  assert.equal(r3.log[0].status, 'rejected')
+  assert.match(r3.log[0].message, /缺少必填/)
 })

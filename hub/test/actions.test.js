@@ -79,3 +79,23 @@ test('未知 action_id 的回执被忽略（重放/伪造防护）', () => {
   actions.onResult('nonexistent-id', 'ok', '', 'd1')
   assert.equal(db.countActions(), 0)
 })
+
+test('onResult 返回布尔：拒收的回执不得广播 SSE（事实层/展示层一致）', () => {
+  const db = createDb(':memory:')
+  const actions = createActions({ publish: () => {}, db, timeoutMs: 1000 })
+  const { action_id } = actions.dispatch('d1', 'reboot', {})
+  assert.equal(actions.onResult(action_id, 'ok', '', 'evil-01'), false, '跨设备 → false')
+  assert.equal(actions.onResult('ghost-id', 'ok', '', 'd1'), false, '未知 id → false')
+  assert.equal(actions.onResult(action_id, 'ok', '', 'd1'), true, '所属设备 → true')
+
+  // handleResult 层：拒收不广播，接受才广播
+  const pushes = []
+  const bus = { emit: (ev, m) => pushes.push(m) }
+  handleResult(actions, bus, 'evil-01', 'reboot', JSON.stringify({ action_id, status: 'ok' }))
+  handleResult(actions, bus, 'ghost-01', 'reboot', JSON.stringify({ action_id, status: 'ok' }))
+  assert.equal(pushes.length, 0, '拒收不得广播')
+  const { action_id: a2 } = actions.dispatch('d1', 'reboot', {})
+  handleResult(actions, bus, 'd1', 'reboot', JSON.stringify({ action_id: a2, status: 'ok' }))
+  assert.equal(pushes.length, 1)
+  assert.equal(pushes[0].status, 'ok')
+})
