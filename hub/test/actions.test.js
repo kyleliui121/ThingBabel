@@ -2,6 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { startStack, wait } from './helpers.js'
 import { createActions, __test } from '../src/actions.js'
+import { createDb } from '../src/db.js'
+import { handleResult } from '../src/handlers/result.js'
 
 test('dispatch 生成 action_id 并发 MQTT；设备回 ok 后状态更新', async () => {
   const s = await startStack({ timeoutMs: 300 })
@@ -43,4 +45,15 @@ test('result 消息走路由更新回执', async () => {
   assert.equal(a.status, 'error')
   assert.equal(a.message, '越界')
   await s.close()
+})
+
+test('handleResult 忽略非法载荷不抛错', () => {
+  const db = createDb(':memory:')
+  const actions = createActions({ publish: () => {}, db, timeoutMs: 1000 })
+  const { action_id } = actions.dispatch('d1', 'reboot', {})
+  handleResult(actions, 'd1', 'reboot', 'null')
+  handleResult(actions, 'd1', 'reboot', JSON.stringify({ action_id, status: 'ok', message: { bad: 1 } }))
+  const a = db.getAction(action_id)
+  assert.equal(a.status, 'ok')
+  assert.equal(a.message, '')
 })

@@ -2,6 +2,7 @@
 export function handleResult(actions, deviceId, name, payload) {
   let msg
   try { msg = JSON.parse(payload) } catch { return }
-  if (!msg.action_id || !msg.status) return
-  actions.onResult(msg.action_id, msg.status, msg.message ?? '')
+  if (!msg || !msg.action_id || !msg.status) return
+  const message = typeof msg.message === 'string' ? msg.message : ''
+  actions.onResult(msg.action_id, msg.status, message)
 }
