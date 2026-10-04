@@ -17,9 +17,9 @@
 
 5. ~~**mosquitto 2.x 说明**~~ ✅ 2026-10-04：`docs/deploy.md`（安装/双 listener/passwd 一设备一账号/pm2/开机自启/验收/备份/FAQ）+ `hub/mosquitto.conf.example`。
 
-## App 打磨
+## App
 
-6. ~~登录与详情页守卫~~ ✅ 2026-10-04：登录双击防抖、`q.id` 缺失守卫、loadDetail 失败不启实时订阅、manifest name/description 已填。**appid 需在 HBuilderX 里生成（云打包前置），指令按钮防抖未做**。
+~~手机端~~ **已于 2026-10-04 应需求方要求整体移除**（uni-app 工程，git 历史可恢复）；将来重建按"REST + SSE 消费者"路线（root README 四平台接入指南第 1 条），接入协议不变。原"App 打磨"待办随之作废。
 
 ## 设备固件（ESP32，待采购到货）
 

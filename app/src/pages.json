@@ -1,8 +1,0 @@
-{
-  "pages": [
-    { "path": "pages/login/login", "style": { "navigationBarTitleText": "实验室中枢" } },
-    { "path": "pages/devices/devices", "style": { "navigationBarTitleText": "设备", "enablePullDownRefresh": true } },
-    { "path": "pages/device/device", "style": { "navigationBarTitleText": "设备详情" } }
-  ],
-  "globalStyle": { "navigationBarTextStyle": "white", "navigationBarBackgroundColor": "#1f2937" }
-}

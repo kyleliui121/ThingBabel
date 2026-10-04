@@ -65,6 +65,6 @@ pm2-startup install
 |------|------|
 | 设备连不上 1883 | 防火墙；mosquitto 是否监听 0.0.0.0（2.x 默认只听 localhost） |
 | 电视页面空白 | 9001 未监听或被防火墙拦；浏览器控制台看 WS 错误 |
-| 手机 H5 跨域报错 | 确认走 hub 的 API（自带 CORS），别把 H5 页面直接 file:// 打开 |
+| 浏览器打不开大屏页 | 检查 9001 是否监听/防火墙；浏览器控制台看 WS 错误；跨机访问用 `?broker=ws://<中枢IP>:9001` |
 | hub 启动即退出提示缺 config.json | 不在 hub/ 目录下启动；pm2 用 `--cwd` |
 | AI 编排报 LLM 请求失败 | config.json 的 llm 段 apiKey/模型名；内网需能访问 open.bigmodel.cn |
