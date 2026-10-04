@@ -41,6 +41,15 @@ export async function runEval(options = {}) {
     ...options
   }
   const spec = JSON.parse(fs.readFileSync(o.tasksFile, 'utf8'))
+  // 任务集守卫（评审第四轮①）：重复 id 会污染 M2 类别均值与 CSV——加载即拒绝
+  {
+    const seen = new Set()
+    for (const t of spec.tasks) {
+      if (!t.id || !t.text) throw new Error(`任务集非法：存在缺 id/text 的条目`)
+      if (seen.has(t.id)) throw new Error(`任务集非法：${t.id} 重复出现`)
+      seen.add(t.id)
+    }
+  }
 
   // ── 内嵌栈（同 soak：broker + db + 路由 + 重排缓冲）──
   const broker = aedes()

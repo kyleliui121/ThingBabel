@@ -5,6 +5,19 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { withExactCache } from '../eval/cache.js'
+
+test('正式任务集：30 条、id 唯一、5 类 × 6（评审第四轮①钉住，防再次混入重复）', () => {
+  const spec = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'eval', 'tasks.json'), 'utf8'))
+  const ids = spec.tasks.map(t => t.id)
+  assert.equal(ids.length, 30)
+  assert.equal(new Set(ids).size, 30)
+  const cat = {}
+  for (const t of spec.tasks) {
+    cat[t.category] = (cat[t.category] || 0) + 1
+    assert.ok(t.check, `${t.id} 必须有判定规则`)
+  }
+  assert.deepEqual(cat, { T1: 6, T2: 6, T3: 6, T4: 6, T5: 6 })
+})
 import { runEval } from '../eval/run.js'
 
 test('精确缓存：同前缀命中，不同前缀未命中', async () => {

@@ -1,7 +1,7 @@
 # Lab Ecosystem（实验室万物互联生态）
 
 局域网物联网生态：设备说 **lab-proto** 协议（MQTT 之上的一层薄规范），中枢统一登记存储，
-手机/浏览器/电视查看与控制，AI 编排层用自然语言指挥一切。
+Web/电视大屏查看，CLI/Agent 用自然语言指挥一切。
 
 ```
 ┌──────────┐  ┌──────────────┐  ┌────────────┐  ┌──────────┐
@@ -16,8 +16,8 @@
                       │  SQLite)        │
                       └───────┬────────┘
               ┌───────────────┼────────────────┐
-        手机 app(H5/APK)   AI 编排 agent        更多消费者
-        (REST + SSE)      (LLM，自然语言任务)
+        Web/电视大屏        AI 编排 agent       REST 消费者
+        (web-screen,WS)    (CLI，自然语言任务)  (登录 token + SSE)
 ```
 
 ## 目录
@@ -32,12 +32,13 @@
 | `hub/src/agent/` | AI 编排：能力清单零转换成 LLM tool schema + 指令回执闭环 | 自然语言任务入口 |
 | `docs/` | 设计文档、两份调研报告、论文实验设计、BACKLOG | 背景与规划 |
 
-## 四类平台怎么接入（复用路径）
+## 三类消费者怎么接入（复用路径）
 
-1. **手机 app**：做 REST + SSE 消费者（登录换 token → `/api/devices` → `/api/stream` 实时推送 → `/api/devices/:id/actions` 下指令），不需要碰 MQTT。内置手机端已于 2026-10-04 移除（git 历史可参考 `app/` 的历史版本），接入协议不变，按此路线重建即可。
-2. **web 页 / 电视**：打开 `devices/web-screen/index.html`（默认连本机 `ws://<host>:9001`，可用 `?broker=ws://192.168.x.x:9001` 指定中枢）。它自己也是一个协议设备：自我介绍、遗嘱、指令回执齐全，电视壳里替换原有页面即可。
-3. **开发板**：抄 `devices/esp32/lab_sensor/lab_sensor.ino`——五个协议要素（discovery/LWT/遥测/回执/retain）都有现成代码，改成你的传感器读数即可。
-4. **任何能跑脚本的东西**：抄 `devices/mock/mock-sensor.js`（Node）或按 `docs/protocol.md` 用任意 MQTT 库实现（Python paho、Go 等同理）。
+1. **Web 页 / 电视**：打开 `devices/web-screen/index.html`（默认连本机 `ws://<host>:9001`，可用 `?broker=ws://192.168.x.x:9001` 指定中枢）。它自己也是一个协议设备：自我介绍、遗嘱、指令回执齐全，电视壳里替换原有页面即可。
+2. **CLI / Agent**：`node hub/src/agent/cli.js "自然语言任务"`——能力清单零转换成 tool schema，规划→指令→回执→汇报，OTel trace 全程落库。
+3. **MQTT 设备**：开发板抄 `devices/esp32/lab_sensor/lab_sensor.ino`（discovery/LWT/遥测/回执/retain 五要素齐全）；脚本设备抄 `devices/mock/mock-sensor.js`（任意语言按 `docs/protocol.md` 同理）。
+
+> 手机端 App 已于 v0.1.1 移除（当时为 uni-app 工程，git 历史可查）；如需重建，走"REST + SSE 消费者"路线（登录换 token → `/api/devices` → `/api/stream` → `/api/devices/:id/actions`），协议不变——详见 CHANGELOG 迁移说明。
 
 ## 快速开始
 
@@ -53,7 +54,7 @@ cd devices/mock && npm start      # 终端2：模拟传感器，上线即自动�
 
 ## 状态（2026-10-04）
 
-- hub 测试通过数与版本事实以 [CHANGELOG.md](CHANGELOG.md) 为唯一来源（当前 v0.1.3）
+- hub 测试通过数与版本事实以 [CHANGELOG.md](CHANGELOG.md) 为唯一来源（当前 v0.1.4）
 - WS 接入路径已端到端验证（浏览器方式连 9001 → 自动登记 → 遗嘱生效）
 - ⚠️ ESP32 固件是**未硬件验证的模板**；LLM 真机调用待填 API key
 - 局域网专用，勿暴露公网（协议 §9）
