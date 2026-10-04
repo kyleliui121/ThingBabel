@@ -48,4 +48,6 @@ curl -H "Authorization: Bearer <token>" http://<hub>:3000/api/traces       # 摘
 curl -H "Authorization: Bearer <token>" http://<hub>:3000/api/traces/<id>  # 全部 span
 ```
 
+**评测基建**（实验设计 v0.2，论文线）：`npm run eval` 跑 30 任务集（M2 成功率/M4 延迟自动判分，精确缓存省 k 次重复成本）；`npm run fleet`（FLEET_SIZE=100）拉虚拟设备群做 M5 工具数曲线；中枢内置 EWMA 异常检测（`anomalyZ` 配置）产生 anomaly 事件。口径见 `../docs/paper/metrics-definitions.md`。
+
 设计与评估方案见 `docs/paper/2026-10-04-candidate1-experiment-design.md`。

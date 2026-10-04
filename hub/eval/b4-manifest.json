@@ -1,0 +1,18 @@
+{
+  "note": "B4 基线：MCP 工具的手工注册清单——每台设备的每个动作都要人工声明（这就是 B4 量的成本）。对照：主方案里同样的动作由 discovery 报文零转换映射而来。",
+  "registered_at": "2026-10-04",
+  "tools": [
+    {
+      "name": "sensor-01__reboot",
+      "description": "[温湿度] 重启设备",
+      "inputSchema": { "type": "object", "properties": {}, "required": [] },
+      "dispatch": { "device_id": "sensor-01", "action": "reboot" }
+    },
+    {
+      "name": "fan-01__set_speed",
+      "description": "[风扇] 设置风速",
+      "inputSchema": { "type": "object", "properties": { "level": { "type": "number", "description": "风速档位 0-3" } }, "required": ["level"] },
+      "dispatch": { "device_id": "fan-01", "action": "set_speed" }
+    }
+  ]
+}

@@ -6,6 +6,8 @@
     "test": "node --test",
     "dev": "node scripts/dev.js",
     "soak": "node scripts/soak.js",
+    "fleet": "node scripts/fleet.js",
+    "eval": "node eval/run.js",
     "start": "node src/index.js"
   },
   "dependencies": {

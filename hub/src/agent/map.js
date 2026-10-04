@@ -57,3 +57,17 @@ export function buildRegistry(db) {
   ].join('\n')
   return { tools, prompt }
 }
+
+// M5 分组注入（实验设计 §4.2）：确定性工具子集——按任务文本与设备 id/名称/类型的字面匹配筛选，
+// 无任何命中则回退全量（任务大概率是全局性的）。纯字符串匹配，不用 embedding（第三轮调研 A1.1 判定该规模为过度设计）
+export function selectTools(db, taskText, allTools) {
+  const matched = allTools.filter(t => {
+    if (t === STATE_TOOL || t.function?.name === 'lab_get_device_state') return true
+    const sep = t.function.name.indexOf('__')
+    if (sep < 0) return false
+    const d = db.getDevice(t.function.name.slice(0, sep))
+    if (!d) return false
+    return taskText.includes(d.device_id) || taskText.includes(d.name) || taskText.includes(d.type)
+  })
+  return matched.length > 1 ? matched : allTools // 只剩状态工具 = 没匹配到任何设备，回退全量
+}

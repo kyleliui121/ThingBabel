@@ -1,16 +1,17 @@
 // C2 编排循环（论文实验设计 §3.3）：自然语言任务 → LLM 规划 → 指令下发 → 回执 → 汇报。
 // callLLM 为注入的模型适配器（测试注入脚本化假模型，生产用 llm.js 的 GLM 适配器）。
 // 全程产出 OTel GenAI 兼容 trace（trace.js），返回值带 trace_id 供查询回放（实验设计 §3.5）
-import { buildRegistry } from './map.js'
+import { buildRegistry, selectTools } from './map.js'
 import { createTrace } from './trace.js'
 
-export function createAgent({ db, actions, callLLM, confirm = async () => true, maxSteps = 5, resultWaitMs = 6500, llmInfo = {} }) {
+export function createAgent({ db, actions, callLLM, confirm = async () => true, maxSteps = 5, resultWaitMs = 6500, llmInfo = {}, toolMode = 'all', registry: registryOverride = null }) {
 
   async function run(task) {
     const trace = createTrace('agent.task', {
       'lab.task': task,
       'gen_ai.system': llmInfo.system ?? 'unknown',
-      'gen_ai.request.model': llmInfo.model ?? 'unknown'
+      'gen_ai.request.model': llmInfo.model ?? 'unknown',
+      'lab.tool_mode': toolMode
     })
     const finish = (answer, steps, extra = {}) => {
       trace.root.end({ 'lab.steps': steps, 'lab.answer': answer, ...extra })
@@ -18,7 +19,9 @@ export function createAgent({ db, actions, callLLM, confirm = async () => true, 
       return { answer, steps, log, trace_id: trace.traceId, ...extra }
     }
 
-    const reg = buildRegistry(db)
+    // registryOverride 供 B2 基线（无发现层）注入硬编码清单；toolMode=grouped 供 M5（第三轮调研 A1.1）
+    const reg = registryOverride ?? buildRegistry(db)
+    const tools = toolMode === 'grouped' ? selectTools(db, task, reg.tools) : reg.tools
     const messages = [
       { role: 'system', content: reg.prompt },
       { role: 'user', content: task }
@@ -29,9 +32,9 @@ export function createAgent({ db, actions, callLLM, confirm = async () => true, 
         'gen_ai.operation.name': 'chat',
         'gen_ai.system': llmInfo.system ?? 'unknown',
         'gen_ai.request.model': llmInfo.model ?? 'unknown',
-        'gen_ai.request.tool_count': reg.tools.length
+        'gen_ai.request.tool_count': tools.length
       }, trace.root) // 挂到 root 下；不传 parent 会与 root 同为 NULL，getRootAttr 会认错行
-      const res = await callLLM(messages, reg.tools)
+      const res = await callLLM(messages, tools)
       const calls = res?.tool_calls || []
       llmSpan.end({ 'gen_ai.response.tool_calls': calls.length })
       if (!calls.length) return finish(res?.content || '', step)

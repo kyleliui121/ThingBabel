@@ -1,0 +1,41 @@
+{
+  "version": "0.1-draft",
+  "note": "30 任务骨架（实验设计 §4.1，5 类 × 6）。text 为任务文本；check 为判定规则（runner 执行）。内容定稿前可继续改，定稿后冻结哈希。",
+  "devices_in_scope": ["sensor-01", "fan-01", "offline-01"],
+  "tasks": [
+    { "id": "T1-01", "category": "T1", "text": "现在 sensor-01 的温度是多少？", "check": { "type": "state_query", "device_id": "sensor-01" } },
+    { "id": "T1-02", "category": "T1", "text": "看一下 fan-01 的最新状态", "check": { "type": "state_query", "device_id": "fan-01" } },
+    { "id": "T1-03", "category": "T1", "text": "实验室湿度现在多少？", "check": { "type": "state_query", "device_id": "sensor-01" } },
+    { "id": "T1-04", "category": "T1", "text": "sensor-01 和 fan-01 现在分别什么状态？", "check": { "type": "min_tools", "n": 2 } },
+    { "id": "T1-05", "category": "T1", "text": "报一下 offline-01 的温度", "check": { "type": "state_query", "device_id": "offline-01" } },
+    { "id": "T1-06", "category": "T1", "text": "现在实验室内环境数据如何？", "check": { "type": "state_query", "device_id": "sensor-01" } },
+
+    { "id": "T2-01", "category": "T2", "text": "把 fan-01 的风速调到 2", "check": { "type": "action", "device_id": "fan-01", "action": "set_speed" } },
+    { "id": "T2-02", "category": "T2", "text": "重启一下 sensor-01", "check": { "type": "action", "device_id": "sensor-01", "action": "reboot" } },
+    { "id": "T2-03", "category": "T2", "text": "风扇开到最大档", "check": { "type": "action", "device_id": "fan-01", "action": "set_speed" } },
+    { "id": "T2-04", "category": "T2", "text": "关掉风扇", "check": { "type": "action", "device_id": "fan-01", "action": "set_speed" } },
+    { "id": "T2-05", "category": "T2", "text": "让 sensor-01 重启一次", "check": { "type": "action", "device_id": "sensor-01", "action": "reboot" } },
+    { "id": "T2-06", "category": "T2", "text": "fan-01 调成低速运转", "check": { "type": "action", "device_id": "fan-01", "action": "set_speed" } },
+
+    { "id": "T3-01", "category": "T3", "text": "先看 sensor-01 的温度，如果超过 26 度就把 fan-01 调到 3 档", "check": { "type": "min_tools", "n": 2 } },
+    { "id": "T3-02", "category": "T3", "text": "查一下湿度，然后重启 sensor-01", "check": { "type": "min_tools", "n": 2 } },
+    { "id": "T3-03", "category": "T3", "text": "看看两个设备的温度差多少，再决定要不要开风扇（fan-01 调 2 档）", "check": { "type": "min_tools", "n": 2 } },
+    { "id": "T3-04", "category": "T3", "text": "对比 sensor-01 和 offline-01 的读数，然后重启 sensor-01", "check": { "type": "min_tools", "n": 2 } },
+    { "id": "T3-05", "category": "T3", "text": "先报温度，再把风扇调到 1 档，最后再报一次温度确认", "check": { "type": "min_tools", "n": 3 } },
+    { "id": "T3-06", "category": "T3", "text": "检查 fan-01 状态，若在线则调到 2 档，离线就告诉我", "check": { "type": "min_tools", "n": 1 } },
+
+    { "id": "T4-01", "category": "T4", "text": "温度高于 28 度时把 fan-01 开到 3 档", "check": { "type": "answer" } },
+    { "id": "T4-02", "category": "T4", "text": "湿度低于 30 就提醒我开加湿器（没有加湿器设备就说明情况）", "check": { "type": "answer" } },
+    { "id": "T4-03", "category": "T4", "text": "下班前（18:00）把 fan-01 调到 1 档", "check": { "type": "answer" } },
+    { "id": "T4-04", "category": "T4", "text": "如果 sensor-01 离线超过 10 分钟，重启它", "check": { "type": "answer" } },
+    { "id": "T4-05", "category": "T4", "text": "每半小时报一次温度", "check": { "type": "answer" } },
+    { "id": "T4-06", "category": "T4", "text": "温度恢复正常后把风扇关掉", "check": { "type": "answer" } },
+
+    { "id": "T5-01", "category": "T5", "text": "把 offline-01 的风速调到 2", "check": { "type": "no_dispatch" } },
+    { "id": "T5-02", "category": "T5", "text": "重启 offline-01", "check": { "type": "no_dispatch" } },
+    { "id": "T5-03", "category": "T5", "text": "向一台不存在的设备 printer-99 发送打印指令", "check": { "type": "no_dispatch" } },
+    { "id": "T5-04", "category": "T5", "text": "offline-01 现在是什么状态？为什么控制不了它？", "check": { "type": "answer" } },
+    { "id": "T5-05", "category": "T5", "text": "把所有设备都重启一遍", "check": { "type": "error_seen" } },
+    { "id": "T5-06", "category": "T5", "text": "fan-01 断电了还能遥控吗？试试就知道了", "check": { "type": "answer" } }
+  ]
+}

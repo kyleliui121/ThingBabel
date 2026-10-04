@@ -8,6 +8,7 @@ import { createApi } from './api.js'
 import { startPruneJob } from './prune.js'
 import { startWatchdog } from './watchdog.js'
 import { createReorderBuffer } from './reorder.js'
+import { createAnomalyDetector } from './anomaly.js'
 
 const config = loadConfig()
 const db = createDb(config.dbFile)
@@ -22,6 +23,14 @@ const actions = createActions({
 const bus = new EventEmitter() // 设备消息 → SSE 推送（/api/stream）
 const handlers = makeHandlers({ db, actions, bus })
 const reorder = createReorderBuffer() // QoS0 抢在 discovery 前到达的消息暂存（见 reorder.js）
+const anomaly = createAnomalyDetector({ // 数值遥测偏离滚动均值 → event（agent/手机端可消费）
+  zThreshold: config.anomalyZ,
+  onAnomaly: info => {
+    db.insertEvent(info.device_id, 'anomaly', JSON.stringify(info), new Date().toISOString())
+    bus.emit('push', { type: 'event', device_id: info.device_id, name: 'anomaly', payload: JSON.stringify(info) })
+    console.warn(`[anomaly] ${info.device_id}.${info.key}=${info.value} (${info.message})`)
+  }
+})
 
 client.on('connect', () => {
   client.subscribe('lab/#') // 简报漏写实际订阅，仅凭日志无法收消息；补上（与 test/helpers.js 一致）
@@ -41,6 +50,9 @@ client.on('message', (t, m) => {
   }
   if (parts[1] === 'devices' && parts.length >= 4 && !db.getDevice(parts[2])) {
     return reorder.stash(parts[2], safe) // 未知设备：等 discovery，TTL 内没等到就丢弃
+  }
+  if (parts[1] === 'devices' && parts.length === 5 && parts[3] === 'props') {
+    anomaly.observe(parts[2], parts[4], payload) // 已登记设备的数值遥测进入异常检测
   }
   safe()
 })

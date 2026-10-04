@@ -101,6 +101,9 @@ export function createDb(file = ':memory:') {
       flushTele()
       return db.prepare('SELECT COUNT(*) AS c FROM telemetry').get().c
     },
+    countActions() {
+      return db.prepare('SELECT COUNT(*) AS c FROM actions_log').get().c
+    },
     prune(cutoffIso) {
       flushTele()
       const t = db.prepare('DELETE FROM telemetry WHERE ts < ?').run(cutoffIso)

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { capsToTools, buildRegistry } from '../src/agent/map.js'
+import { capsToTools, buildRegistry, selectTools } from '../src/agent/map.js'
 import { createDb } from '../src/db.js'
 
 const caps = {
@@ -39,4 +39,27 @@ test('buildRegistry：内置状态工具 + 设备工具 + prompt 含遥测快照
   assert.match(reg.prompt, /机械臂/)
   assert.match(reg.prompt, /12\.5/)
   assert.match(reg.prompt, /在线/)
+})
+
+test('selectTools：任务提及某设备 → 只留该设备工具+状态工具；无命中回退全量', () => {
+  const db = createDb(':memory:')
+  const mk = (id, name, type, actions) => db.upsertDevice({
+    device_id: id, name, type, description: '', proto_ver: 1,
+    caps_json: JSON.stringify({ proto_ver: 1, device_id: id, name, type, properties: [], actions, events: [] })
+  })
+  mk('sensor-01', '温湿度', 'sensor', [{ name: 'reboot', description: '重启', params: [] }])
+  mk('fan-01', '风扇', 'actuator', [{ name: 'set_speed', description: '调速', params: [] }])
+  mk('arm-01', '机械臂', 'arm', [{ name: 'move', description: '移动', params: [] }])
+  const all = buildRegistry(db).tools
+  assert.equal(all.length, 4) // 状态工具 + 3 设备工具
+
+  const hit = selectTools(db, '把风扇 fan-01 调到 2 档', all)
+  assert.deepEqual(hit.map(t => t.function.name).sort(), ['fan-01__set_speed', 'lab_get_device_state'])
+
+  const byType = selectTools(db, '重启所有 sensor 设备', all) // type 字面命中
+  assert.ok(byType.some(t => t.function.name === 'sensor-01__reboot'))
+  assert.ok(!byType.some(t => t.function.name === 'arm-01__move'))
+
+  const fallback = selectTools(db, '现在实验室情况怎么样', all)
+  assert.equal(fallback.length, all.length)
 })
