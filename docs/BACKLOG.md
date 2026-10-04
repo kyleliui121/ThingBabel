@@ -31,7 +31,10 @@
 9. ~~`src/agent.js`：映射规则 + 编排循环 + 确认开关~~ ✅ 2026-10-04：`src/agent/`（map.js 映射 + index.js 编排 + llm.js 适配器 + cli.js 入口）完成，8 项测试覆盖查询/控制/确认拒绝/离线守卫/未知工具/步数上限。**真机 LLM 调用待填 llm.apiKey 后验证**。
 10. 采购 ESP32×3 + SHT31×2 + 继电器×1；确定 LLM API 与版本记录。
 11. ~~OTel GenAI 兼容 trace~~ ✅ 2026-10-04（第三轮调研 A2，实验设计 §3.5）：`src/agent/trace.js` + `traces` 表 + `GET /api/traces[/:id]`；root→chat→tool 父子链（修了 chat span 未挂 root 的 bug，回归测试已锁）。**W4 前置达成**。
-12. 第三轮调研遗留（实验设计 v0.2 已排期，W2'）：B4 MCP server 基线、M5 工具数曲线 mock 规模化、分组注入子集、评测期精确缓存。
+12. ~~W2' 三件套~~ ✅ 2026-10-04：**M5 基建**（`scripts/fleet.js` 设备群 + `map.js#selectTools` 确定性分组 + agent `toolMode`）、**评测 runner**（`eval/run.js`：任务集 30 骨架 + 精确缓存 `eval/cache.js` + M2/M4 自动判分出 CSV/JSON，B2 基线内置）、**B4 MCP 基线**（`src/mcp.js` JSON-RPC + `eval/b4-manifest.json` 手工注册清单）。
+13. ~~系统配套~~ ✅ 2026-10-04：EWMA 异常检测 `src/anomaly.js`（Welford，`anomalyZ` 配置，event 入库+SSE）；协议 0.2 deadband 在 mock 仿真（`DEADBAND`/`HEARTBEAT_S` 环境变量）；**指标口径文档** `docs/paper/metrics-definitions.md`（M1-M5 定义/统计/排除规则，W4 前冻结）。
+14. W3 待办：任务集内容定稿并冻结哈希（`eval/tasks.json` 仍是 draft 骨架）；B1 基线实现；discovery 快照进 runner run 目录。
+15. W4-W5：`npm run eval` 真跑（填 llm.apiKey 后）+ 故障注入 + M5 曲线采集。
 
 ## 已裁定不修（记录在案）
 
