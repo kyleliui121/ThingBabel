@@ -7,6 +7,7 @@ import { makeHandlers, route } from './router.js'
 import { createApi } from './api.js'
 import { startPruneJob } from './prune.js'
 import { startWatchdog } from './watchdog.js'
+import { createReorderBuffer } from './reorder.js'
 
 const config = loadConfig()
 const db = createDb(config.dbFile)
@@ -20,6 +21,7 @@ const actions = createActions({
 })
 const bus = new EventEmitter() // 设备消息 → SSE 推送（/api/stream）
 const handlers = makeHandlers({ db, actions, bus })
+const reorder = createReorderBuffer() // QoS0 抢在 discovery 前到达的消息暂存（见 reorder.js）
 
 client.on('connect', () => {
   client.subscribe('lab/#') // 简报漏写实际订阅，仅凭日志无法收消息；补上（与 test/helpers.js 一致）
@@ -27,8 +29,20 @@ client.on('connect', () => {
 })
 client.on('message', (t, m) => {
   // 单条消息处理故障只丢弃该条，不拖垮整个 hub（协议 §4.5）
-  try { route(t.split('/'), m.toString(), handlers) }
-  catch (e) { console.error('[route]', t, e.message) }
+  const parts = t.split('/')
+  const payload = m.toString()
+  const safe = () => { try { route(parts, payload, handlers) } catch (e) { console.error('[route]', t, e.message) } }
+
+  if (parts[0] !== 'lab') return
+  if (parts[1] === 'discovery' && parts.length === 3) {
+    safe()
+    if (db.getDevice(parts[2])) reorder.flush(parts[2]) // 登记成功 → 补处理此前被暂存的消息
+    return
+  }
+  if (parts[1] === 'devices' && parts.length >= 4 && !db.getDevice(parts[2])) {
+    return reorder.stash(parts[2], safe) // 未知设备：等 discovery，TTL 内没等到就丢弃
+  }
+  safe()
 })
 
 const app = createApi({ db, actions, config, bus })

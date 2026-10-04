@@ -15,7 +15,7 @@
 
 ## 部署文档
 
-5. **mosquitto 2.x 说明**：默认只监听 localhost，生产部署文档需写明 listener 配置 + 协议 §9 一设备一账号的 passwd 配置步骤。
+5. ~~**mosquitto 2.x 说明**~~ ✅ 2026-10-04：`docs/deploy.md`（安装/双 listener/passwd 一设备一账号/pm2/开机自启/验收/备份/FAQ）+ `hub/mosquitto.conf.example`。
 
 ## App 打磨
 
@@ -24,7 +24,7 @@
 ## 设备固件（ESP32，待采购到货）
 
 7. **客户端库用 espMqttClient，不用 PubSubClient**：PubSubClient 已停止维护且 publish 仅支持 QoS 0，与协议"回执 QoS 1"冲突（优化报告 #3，已核实其官方 README）。
-8. **协议 0.2：deadband 差值上报 + 心跳兜底**：加能力位、升 proto_ver；稳态写入量可降一个数量级，电池设备必选（优化报告 #4）。设计稿先行，与实验设计文档 W1 固件任务合并推进。
+8. ~~**协议 0.2：deadband 差值上报 + 心跳兜底**~~ 设计稿完成 ✅ 2026-10-04：`docs/protocol-0.2-deadband-draft.md`（可选字段不升 proto_ver，中枢/手机端零改动）；**固件实现待 ESP32 到货**，与实验设计文档 W1 任务合并。
 
 ## 论文线（候选①，见 docs/paper/2026-10-04-candidate1-experiment-design.md）
 
@@ -35,7 +35,7 @@
 
 - package-lock resolved 指向 npmmirror：npm 校验完整性哈希，内容固定，区域网络正常选择。
 - dev.js EADDRINUSE 原始堆栈：DX 打磨，fail-fast 行为可接受。
-- 兄弟 handler 直调 null 载荷：经 mqtt.js 路径不可达（payload 恒为 string），且 index.js 路由兜底 try/catch 已提供第二道防线。
+- ~~兄弟 handler 直调 null 载荷~~ 已由重排缓冲与入口兜底覆盖。
 - CBOR/压缩、MQTT-SN/CoAP、换时序库、换 NanoMQ/FlashMQ：优化报告判定对本规模过度设计，各"不做"项的回头触发条件见报告。
 
 ## 2026-10-04 执行记录（优化报告落地）
@@ -44,7 +44,9 @@
 - ✅ 保留清理任务 `src/prune.js`（原待办 5：遥测/事件表无限增长——已解决；聚合表暂不做）
 - ✅ SSE 实时推送 `/api/stream` + app 轮询回退（原待办"空闲轮询可换 WebSocket"——以 SSE 方案完成）
 - ✅ 第二批（健壮性）：启动置离线 + last_seen 看门狗、畸形 body 400/JSON 404/CORS 顺序、config 默认值告警、events REST 查询、app 防抖与守卫
-- 测试 22 → 34 项全过
+- ✅ 第三批（复用层）：dev broker WS 监听 9001（端到端验证）、web-screen 电视/浏览器页、esp32 固件模板、四平台复用 README、按运行位置分类的交付包
+- ✅ 第四批（收尾加固）：**重排缓冲 `src/reorder.js`**（修复真实 bug：QoS0 遥测抢在 QoS1 discovery 前到达被误吞/retain 重放顺序同样触发）、WS 路径锁进自动化测试、mock 温度钳位、长稳脚本 `npm run soak`（中途杀设备验证 LWT+看门狗）、协议 0.2 deadband 设计稿、生产部署指南 `docs/deploy.md`
+- 测试 22 → 45 项全过
 
 ## 战略方向（设计稿 §10，不变）
 

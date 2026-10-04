@@ -84,6 +84,10 @@ export function createDb(file = ':memory:') {
       return db.prepare('SELECT value, ts FROM telemetry WHERE device_id=? AND key=? ORDER BY id DESC LIMIT ?')
         .all(deviceId, key, limit)
     },
+    countTelemetry() {
+      flushTele()
+      return db.prepare('SELECT COUNT(*) AS c FROM telemetry').get().c
+    },
     prune(cutoffIso) {
       flushTele()
       const t = db.prepare('DELETE FROM telemetry WHERE ts < ?').run(cutoffIso)

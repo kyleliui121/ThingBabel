@@ -33,7 +33,7 @@ client.on('connect', () => {
 })
 
 function publishTelemetry() {
-  temp += (Math.random() - 0.5) * 0.4
+  temp = Math.max(-40, Math.min(85, temp + (Math.random() - 0.5) * 0.4)) // 钳位：长跑不漂出物理范围
   hum = Math.max(0, Math.min(100, hum + (Math.random() - 0.5)))
   client.publish(`lab/devices/${ID}/props/temperature`, temp.toFixed(1), { retain: true })   // 协议 §4
   client.publish(`lab/devices/${ID}/props/humidity`, Math.round(hum).toString(), { retain: true })
