@@ -2,18 +2,18 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createAnomalyDetector } from '../src/anomaly.js'
 
-test('Welford：稳态漂移不报警，尖峰超过 z 阈值报警', () => {
+test('Welford：稳态漂移不报警，尖峰超过 z 阈值报警（确定性输入，禁止随机）', () => {
   const hits = []
   const d = createAnomalyDetector({ zThreshold: 3, minSamples: 10, onAnomaly: i => hits.push(i) })
-  for (let i = 0; i < 30; i++) d.observe('s1', 'temperature', 23 + Math.random() * 0.2) // 稳态 ~23
-  assert.equal(hits.length, 0)
-  d.observe('s1', 'temperature', 35) // 尖峰
-  assert.equal(hits.length, 1)
-  assert.equal(hits[0].device_id, 's1')
-  assert.equal(hits[0].key, 'temperature')
-  assert.ok(hits[0].z >= 3)
-  assert.ok(hits[0].message.includes('σ'))
-  d.observe('s1', 'temperature', 23.1) // 回落后不再报
+  // 固定序列：均值 23.0、样本 sd≈0.079 → 稳态 z 上界 ~1.9，数学上不可能误报
+  const steady = [23.0, 23.1, 22.9, 23.05, 22.95]
+  for (let i = 0; i < 30; i++) assert.equal(d.observe('s1', 'temperature', steady[i % 5]), null)
+  const hit = d.observe('s1', 'temperature', 35) // 尖峰
+  assert.ok(hit && hit.z >= 3)
+  assert.equal(hit.device_id, 's1')
+  assert.equal(hit.key, 'temperature')
+  assert.ok(hit.message.includes('σ'))
+  assert.equal(d.observe('s1', 'temperature', 23.1), null) // 回落后不再报
   assert.equal(hits.length, 1)
 })
 

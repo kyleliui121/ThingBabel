@@ -88,6 +88,13 @@ async function doTool(name, args, { db, actions, confirm, resultWaitMs }) {
   if (!d) return { status: 'error', message: `设备 ${deviceId} 不存在` }
   if (!d.online) return { status: 'error', device_id: deviceId, message: `设备 ${deviceId} 离线，指令未下发` }
 
+  // 授权边界（P0）：只允许下发设备自我介绍里声明过的动作——
+  // LLM 幻觉或注入的 deviceId__anything 在这里被拦下，到不了 MQTT
+  let caps = {}
+  try { caps = JSON.parse(d.caps_json) } catch {}
+  if (!(caps.actions || []).some(a => a.name === actionName))
+    return { status: 'rejected', device_id: deviceId, message: `设备 ${deviceId} 未声明指令 ${actionName}，拒绝下发` }
+
   if (!(await confirm({ device_id: deviceId, action: actionName, params: args })))
     return { status: 'rejected', device_id: deviceId, message: '人工确认拒绝执行' }
 

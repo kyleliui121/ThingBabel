@@ -57,3 +57,25 @@ test('handleResult 忽略非法载荷不抛错', () => {
   assert.equal(a.status, 'ok')
   assert.equal(a.message, '')
 })
+
+test('回执安全：跨设备伪造回执被忽略，非法 status 枚举被忽略', () => {
+  const db = createDb(':memory:')
+  const actions = createActions({ publish: () => {}, db, timeoutMs: 1000 })
+  const { action_id } = actions.dispatch('d1', 'reboot', {})
+
+  handleResult(actions, null, 'evil-01', 'reboot', JSON.stringify({ action_id, status: 'ok' })) // d2 冒充 d1
+  assert.equal(db.getAction(action_id).status, 'pending', '非所属设备的回执不得生效')
+
+  handleResult(actions, null, 'd1', 'reboot', JSON.stringify({ action_id, status: 'hacked' }))
+  assert.equal(db.getAction(action_id).status, 'pending', '协议外 status 不得生效')
+
+  handleResult(actions, null, 'd1', 'reboot', JSON.stringify({ action_id, status: 'ok' }))
+  assert.equal(db.getAction(action_id).status, 'ok')
+})
+
+test('未知 action_id 的回执被忽略（重放/伪造防护）', () => {
+  const db = createDb(':memory:')
+  const actions = createActions({ publish: () => {}, db, timeoutMs: 1000 })
+  actions.onResult('nonexistent-id', 'ok', '', 'd1')
+  assert.equal(db.countActions(), 0)
+})

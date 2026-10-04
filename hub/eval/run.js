@@ -139,7 +139,20 @@ export async function runEval(options = {}) {
       case 'no_dispatch': return dispatchCount === 0
       case 'error_seen': return toolLogs.some(l => l.status && l.status !== 'ok')
       case 'min_tools': return toolLogs.length >= c.n
-      case 'answer': return typeof run.answer === 'string' && run.answer.trim().length > 0
+      // sequence：按 log 顺序消费步骤（状态查询/成功动作），证明的是"组合正确"而不只是"调了几次"
+      case 'sequence': {
+        let i = 0
+        for (const l of toolLogs) {
+          if (i >= c.steps.length) break
+          const st = c.steps[i]
+          if (st.kind === 'state_query' && l.tool === 'lab_get_device_state' && l.status === 'ok' && (!st.device_id || l.device_id === st.device_id)) i++
+          else if (st.kind === 'action' && l.action_id && l.device_id === st.device_id && l.tool.endsWith(`__${st.action}`) && l.status === 'ok') i++
+        }
+        return i >= c.steps.length
+      }
+      // answer：仅作兜底（条件定时类任务无法单轮行为验证）。最低长度挡掉"好的。"式敷衍；
+      // 已知局限与 LLM-as-judge 升级路径见 metrics-definitions.md §M2
+      case 'answer': return typeof run.answer === 'string' && run.answer.trim().length >= 10
       default: return false
     }
   }
@@ -148,6 +161,8 @@ export async function runEval(options = {}) {
   for (const task of spec.tasks) {
     const runs = []
     for (let k = 0; k < o.repeats; k++) {
+      for (const s of task.setup || []) // 种子状态：任务级固定（跨重复一致，缓存键不受影响）
+        db.insertTelemetry(s.device_id, s.key, String(s.value), new Date().toISOString())
       const before = db.countActions()
       const r = await agent.run(task.text)
       const after = db.countActions()

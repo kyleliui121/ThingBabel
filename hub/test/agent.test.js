@@ -135,3 +135,32 @@ test('事件工具：lab_get_recent_events 返回已入库事件（异常→编�
   assert.equal(r.log[0].events.length, 1)
   assert.equal(r.log[0].events[0].name, 'anomaly')
 })
+
+test('授权边界（P0）：设备未声明的动作被拒绝下发，到不了 MQTT', async () => {
+  const s = mkStack()
+  const agent = createAgent({
+    db: s.db, actions: s.actions,
+    callLLM: scripted([
+      { content: '', tool_calls: [call('t1', 'sensor-01__format_disk', {})] }, // 幻觉/注入动作
+      { content: '设备没有这个功能', tool_calls: [] }
+    ])
+  })
+  const r = await agent.run('帮我把磁盘格式化')
+  assert.equal(s.dispatched.length, 0, '未声明动作不得下发')
+  assert.equal(r.log[0].status, 'rejected')
+  assert.match(r.log[0].message, /未声明/)
+})
+
+test('分组注入下同样受授权边界保护（toolMode=grouped 绕不过 caps 校验）', async () => {
+  const s = mkStack()
+  const agent = createAgent({
+    db: s.db, actions: s.actions, toolMode: 'grouped',
+    callLLM: scripted([
+      { content: '', tool_calls: [call('t1', 'sensor-01__open_door', {})] },
+      { content: '无法执行', tool_calls: [] }
+    ])
+  })
+  const r = await agent.run('把门打开')
+  assert.equal(s.dispatched.length, 0)
+  assert.equal(r.log[0].status, 'rejected')
+})

@@ -17,7 +17,10 @@ export function createActions({ publish, db, timeoutMs = 5000 }) {
       }, timeoutMs))
       return { action_id }
     },
-    onResult(actionId, status, message = '') {
+    onResult(actionId, status, message = '', deviceId = null) {
+      const a = db.getAction(actionId)
+      if (!a) return // 未知 action_id：忽略（可能是重放或伪造）
+      if (deviceId && a.device_id !== deviceId) return // 回执只能结束其指令所属设备的指令
       const t = timers.get(actionId)
       if (t) { clearTimeout(t); timers.delete(actionId) }
       db.updateAction(actionId, { status, message })
