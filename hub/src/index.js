@@ -20,7 +20,11 @@ client.on('connect', () => {
   client.subscribe('lab/#') // 简报漏写实际订阅，仅凭日志无法收消息；补上（与 test/helpers.js 一致）
   console.log(`[mqtt] 已连接 ${config.mqttUrl}，订阅 lab/#`)
 })
-client.on('message', (t, m) => route(t.split('/'), m.toString(), handlers))
+client.on('message', (t, m) => {
+  // 单条消息处理故障只丢弃该条，不拖垮整个 hub（协议 §4.5）
+  try { route(t.split('/'), m.toString(), handlers) }
+  catch (e) { console.error('[route]', t, e.message) }
+})
 
 const app = createApi({ db, actions, config })
 app.listen(config.port, () => console.log(`[api]  http://<本机IP>:${config.port}`))

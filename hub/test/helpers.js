@@ -20,7 +20,10 @@ export async function startStack({ timeoutMs = 200 } = {}) {
   const handlers = makeHandlers({ db, actions })
 
   hubClient.on('connect', () => hubClient.subscribe('lab/#'))
-  hubClient.on('message', (t, m) => route(t.split('/'), m.toString(), handlers))
+  hubClient.on('message', (t, m) => {
+    try { route(t.split('/'), m.toString(), handlers) } // 与 src/index.js 相同的兜底，处理器异常只丢弃该条
+    catch (e) { console.error('[route]', t, e.message) }
+  })
 
   const device = mqtt.connect(`mqtt://127.0.0.1:${port}`, { clientId: 'test-device' })
   await wait(150)

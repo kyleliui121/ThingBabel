@@ -62,7 +62,7 @@ export function createApi({ db, actions, config }) {
     if (!findDevice(res, req.params.id)) return
     const key = String(req.query.key || '')
     if (!key) return fail(res, 400, '缺少 key 参数')
-    const limit = Math.min(Number(req.query.limit) || 100, 1000)
+    const limit = Math.max(1, Math.min(Number(req.query.limit) || 100, 1000)) // 负数 LIMIT 在 SQLite 里等于无限制
     return wrap(res, db.propHistory(req.params.id, key, limit))
   })
 

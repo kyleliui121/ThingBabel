@@ -23,12 +23,13 @@ const client = mqtt.connect(URL, {
 })
 
 let temp = 23.0, hum = 45.0
+let telemetryTimer = null // mqtt.js 每次重连都会重发 connect，定时器只建一次防叠加
 
 client.on('connect', () => {
   client.publish(`lab/discovery/${ID}`, JSON.stringify(intro), { retain: true, qos: 1 })
   client.publish(`lab/devices/${ID}/status`, 'online', { retain: true, qos: 1 })
   client.subscribe(`lab/devices/${ID}/actions/+`)
-  setInterval(publishTelemetry, 5000)
+  if (!telemetryTimer) telemetryTimer = setInterval(publishTelemetry, 5000)
 })
 
 function publishTelemetry() {

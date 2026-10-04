@@ -2,6 +2,7 @@
 export function handleDiscovery(db, deviceId, payload) {
   let msg
   try { msg = JSON.parse(payload) } catch { return warn(deviceId, 'JSON 解析失败') }
+  if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return warn(deviceId, '载荷不是 JSON 对象') // 'null'/'5'/'[]' 等
   if (typeof msg.proto_ver !== 'number') return warn(deviceId, '缺 proto_ver')
   if (msg.device_id !== deviceId) return warn(deviceId, 'device_id 与主题不一致')
   if (!msg.name || typeof msg.name !== 'string') return warn(deviceId, '缺 name')

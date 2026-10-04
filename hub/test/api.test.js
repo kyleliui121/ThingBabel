@@ -55,6 +55,18 @@ test('设备列表带最新遥测，详情带 caps，历史可查', async () => 
   s.close()
 })
 
+test('历史 limit 负数不会退化为整表返回', async () => {
+  const s = await startApi()
+  const { data: { token } } = await (await s.call('POST', '/api/login', { password: 'pw' })).json()
+  s.db.upsertDevice({ ...intro, caps_json: JSON.stringify(intro) })
+  for (let i = 0; i < 150; i++) // 播种 >100 条：limit=-1 在 SQLite 里是无限制，会整表吐出
+    s.db.insertTelemetry('sensor-01', 'temperature', String(20 + i), new Date().toISOString())
+
+  const hist = (await (await s.call('GET', '/api/devices/sensor-01/props/history?key=temperature&limit=-1', null, token)).json()).data
+  assert.ok(hist.length <= 100, `limit=-1 应有下界，不应整表返回（实际 ${hist.length} 条）`)
+  s.close()
+})
+
 test('下发指令返回 action_id，超时后可查状态', async () => {
   const s = await startApi()
   const { data: { token } } = await (await s.call('POST', '/api/login', { password: 'pw' })).json()
