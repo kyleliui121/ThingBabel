@@ -31,7 +31,10 @@ const confirm = async ({ device_id, action }) => {
 
 client.on('connect', async () => {
   try {
-    const agent = createAgent({ db, actions, callLLM: createLlm(config.llm), confirm })
+    const agent = createAgent({
+      db, actions, callLLM: createLlm(config.llm), confirm,
+      llmInfo: { system: 'bigmodel', model: config.llm.model } // 进 trace 的 gen_ai.* 属性
+    })
     console.log(JSON.stringify(await agent.run(task), null, 2))
   } catch (e) {
     console.error('[agent]', e.message)

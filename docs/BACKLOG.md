@@ -30,6 +30,8 @@
 
 9. ~~`src/agent.js`：映射规则 + 编排循环 + 确认开关~~ ✅ 2026-10-04：`src/agent/`（map.js 映射 + index.js 编排 + llm.js 适配器 + cli.js 入口）完成，8 项测试覆盖查询/控制/确认拒绝/离线守卫/未知工具/步数上限。**真机 LLM 调用待填 llm.apiKey 后验证**。
 10. 采购 ESP32×3 + SHT31×2 + 继电器×1；确定 LLM API 与版本记录。
+11. ~~OTel GenAI 兼容 trace~~ ✅ 2026-10-04（第三轮调研 A2，实验设计 §3.5）：`src/agent/trace.js` + `traces` 表 + `GET /api/traces[/:id]`；root→chat→tool 父子链（修了 chat span 未挂 root 的 bug，回归测试已锁）。**W4 前置达成**。
+12. 第三轮调研遗留（实验设计 v0.2 已排期，W2'）：B4 MCP server 基线、M5 工具数曲线 mock 规模化、分组注入子集、评测期精确缓存。
 
 ## 已裁定不修（记录在案）
 

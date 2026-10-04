@@ -25,6 +25,12 @@ export function createDb(file = ':memory:') {
     CREATE TABLE IF NOT EXISTS events(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       device_id TEXT NOT NULL, name TEXT NOT NULL, payload_json TEXT NOT NULL, ts TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS traces(
+      trace_id TEXT NOT NULL, span_id TEXT NOT NULL, parent_span_id TEXT,
+      name TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'INTERNAL',
+      start_ms INTEGER NOT NULL, end_ms INTEGER, attributes_json TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL DEFAULT 'unset', status_message TEXT DEFAULT '');
+    CREATE INDEX IF NOT EXISTS idx_traces ON traces(trace_id, start_ms);
   `)
 
   const insertTeleStmt = db.prepare('INSERT INTO telemetry(device_id,key,value,ts) VALUES(?,?,?,?)')
@@ -38,6 +44,13 @@ export function createDb(file = ':memory:') {
     db.transaction(rows => {
       for (const r of rows) insertTeleStmt.run(r.deviceId, r.key, r.value, r.ts)
     })(rows)
+  }
+
+  function getRootAttr(db, traceId, key) {
+    // root = trace 里唯一的 parent_span_id IS NULL 的 span（前提：所有子 span 正确挂树，见 agent/index.js）
+    const row = db.prepare('SELECT attributes_json FROM traces WHERE trace_id = ? AND parent_span_id IS NULL LIMIT 1').get(traceId)
+    if (!row) return null
+    try { return JSON.parse(row.attributes_json)[key] ?? null } catch { return null }
   }
 
   return {
@@ -120,6 +133,19 @@ export function createDb(file = ':memory:') {
         ? db.prepare('SELECT device_id, name, payload_json, ts FROM events WHERE device_id = ? ORDER BY id DESC LIMIT ?')
         : db.prepare('SELECT device_id, name, payload_json, ts FROM events ORDER BY id DESC LIMIT ?')
       return deviceId ? stmt.all(deviceId, limit) : stmt.all(limit)
+    },
+    insertSpan(s) {
+      db.prepare(`INSERT INTO traces(trace_id,span_id,parent_span_id,name,kind,start_ms,end_ms,attributes_json,status,status_message)
+        VALUES(@trace_id,@span_id,@parent_span_id,@name,@kind,@start_ms,@end_ms,@attributes_json,@status,@status_message)`)
+        .run({ parent_span_id: null, end_ms: null, status_message: '', ...s }) // 默认值在前，s 的真实字段必须覆盖它们
+    },
+    getTrace(traceId) {
+      return db.prepare('SELECT * FROM traces WHERE trace_id = ? ORDER BY start_ms, rowid').all(traceId)
+    },
+    listTraces(limit = 20) {
+      const rows = db.prepare(`SELECT trace_id, COUNT(*) AS spans, MIN(start_ms) AS started, MAX(end_ms) AS ended
+        FROM traces GROUP BY trace_id ORDER BY started DESC LIMIT ?`).all(limit)
+      return rows.map(r => ({ ...r, task: getRootAttr(db, r.trace_id, 'lab.task') }))
     }
   }
 }

@@ -45,4 +45,13 @@ node src/agent/cli.js "现在传感器多少度？"
 node src/agent/cli.js "重启一下传感器"
 ```
 
-安全策略：sensor 类设备动作直接放行，其余类型 CLI 交互确认（y/N）。设计与评估方案见 `docs/paper/2026-10-04-candidate1-experiment-design.md`。
+安全策略：sensor 类设备动作直接放行，其余类型 CLI 交互确认（y/N）。
+
+**评测 trace（OTel GenAI 兼容）**：每次任务自动产出结构化 trace（root `agent.task` → `gen_ai.chat` → `tool` 父子链，含 `gen_ai.system/model`、回执状态、action_id），落 SQLite `traces` 表：
+
+```bash
+curl -H "Authorization: Bearer <token>" http://<hub>:3000/api/traces       # 摘要（含任务文本）
+curl -H "Authorization: Bearer <token>" http://<hub>:3000/api/traces/<id>  # 全部 span
+```
+
+设计与评估方案见 `docs/paper/2026-10-04-candidate1-experiment-design.md`。

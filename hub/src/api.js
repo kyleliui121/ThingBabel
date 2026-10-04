@@ -104,6 +104,17 @@ export function createApi({ db, actions, config, bus = null }) {
     return wrap(res, db.recentEvents({ deviceId: deviceId || undefined, limit }))
   })
 
+  // agent 运行 trace（OTel GenAI 兼容，实验设计 §3.5）
+  app.get('/api/traces', (req, res) => {
+    const limit = Math.max(1, Math.min(Number(req.query.limit) || 20, 200))
+    return wrap(res, db.listTraces(limit))
+  })
+  app.get('/api/traces/:id', (req, res) => {
+    const spans = db.getTrace(req.params.id)
+    if (!spans.length) return fail(res, 404, 'trace 不存在')
+    return wrap(res, spans)
+  })
+
   // 未知 /api/* 路由：JSON envelope 而非 Express 的 HTML 404（BACKLOG #2）
   app.use('/api', (req, res) => fail(res, 404, '未知接口'))
 
