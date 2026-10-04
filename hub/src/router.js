@@ -18,12 +18,12 @@ export function route(parts, payload, h) {
   }
 }
 
-export function makeHandlers({ db, actions }) {
+export function makeHandlers({ db, actions, bus = null }) {
   return {
-    discovery: (id, p) => handleDiscovery(db, id, p),
-    status: (id, p) => handleStatus(db, id, p),
-    props: (id, key, p) => handleProps(db, id, key, p),
-    result: (id, name, p) => handleResult(actions, id, name, p),
-    events: (id, name, p) => handleEvent(db, id, name, p)
+    discovery: (id, p) => handleDiscovery(db, bus, id, p),
+    status: (id, p) => handleStatus(db, bus, id, p),
+    props: (id, key, p) => handleProps(db, bus, id, key, p),
+    result: (id, name, p) => handleResult(actions, bus, id, name, p),
+    events: (id, name, p) => handleEvent(db, bus, id, name, p)
   }
 }

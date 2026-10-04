@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { EventEmitter } from 'node:events'
 import { createApi } from '../src/api.js'
 import { createDb } from '../src/db.js'
 import { createActions } from '../src/actions.js'
@@ -7,8 +8,9 @@ import { createActions } from '../src/actions.js'
 async function startApi() {
   const db = createDb(':memory:')
   const config = { adminPassword: 'pw', jwtSecret: 'test-secret' }
+  const bus = new EventEmitter()
   const actions = createActions({ publish: () => {}, db, timeoutMs: 100 })
-  const app = createApi({ db, actions, config })
+  const app = createApi({ db, actions, config, bus })
   const server = app.listen(0)
   await new Promise(r => server.on('listening', r))
   const base = `http://127.0.0.1:${server.address().port}`
@@ -17,7 +19,9 @@ async function startApi() {
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: body ? JSON.stringify(body) : undefined
   })
-  return { db, base, call, close: () => server.close() }
+  // closeAllConnections：SSE 长连接不关会拖住测试进程
+  const close = () => { server.closeAllConnections?.(); server.close() }
+  return { db, bus, base, call, close }
 }
 
 const intro = { proto_ver: 1, device_id: 'sensor-01', name: '温湿度', type: 'sensor', description: '', properties: [{ key: 'temperature', name: '温度', unit: '°C', type: 'number' }], actions: [{ name: 'reboot', description: '重启', params: [] }], events: [] }
@@ -83,5 +87,33 @@ test('CORS 头存在（uni-app H5 需要）', async () => {
   const s = await startApi()
   const r = await s.call('GET', '/api/devices')
   assert.equal(r.headers.get('access-control-allow-origin'), '*')
+  s.close()
+})
+
+test('SSE 流：无 token 401，有 token 收到实时推送', async () => {
+  const s = await startApi()
+  const { data: { token } } = await (await s.call('POST', '/api/login', { password: 'pw' })).json()
+
+  assert.equal((await fetch(s.base + '/api/stream')).status, 401)
+
+  const ac = new AbortController()
+  const res = await fetch(`${s.base}/api/stream?token=${token}`, { signal: ac.signal })
+  assert.ok(res.headers.get('content-type').includes('text/event-stream'))
+  const reader = res.body.getReader()
+  const dec = new TextDecoder()
+  let buf = ''
+  const readUntil = async (pred) => {
+    for (let i = 0; i < 10 && !pred(buf); i++) buf += dec.decode((await reader.read()).value)
+  }
+
+  s.bus.emit('push', { type: 'props', device_id: 'sensor-01', key: 'temperature', value: '23.5', ts: 'now' })
+  await readUntil(b => b.includes('"type":"props"'))
+  assert.match(buf, /data: \{"type":"props","device_id":"sensor-01","key":"temperature","value":"23.5"/)
+
+  s.bus.emit('push', { type: 'status', device_id: 'sensor-01', online: false })
+  await readUntil(b => b.includes('"type":"status"'))
+  assert.match(buf, /"online":false/)
+  ac.abort()
+  await reader.cancel().catch(() => {})
   s.close()
 })

@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken'
 const wrap = (res, data) => res.json({ code: 0, data })
 const fail = (res, status, message) => res.status(status).json({ code: 1, message })
 
-export function createApi({ db, actions, config }) {
+export function createApi({ db, actions, config, bus = null }) {
   const app = express()
   app.use(express.json())
 
@@ -22,6 +22,24 @@ export function createApi({ db, actions, config }) {
     if (password !== config.adminPassword) return fail(res, 401, '密码错误')
     const token = jwt.sign({ role: 'admin' }, config.jwtSecret, { expiresIn: '7d' })
     return wrap(res, { token })
+  })
+
+  // SSE 实时推送（优化报告 #5）。EventSource 不能带 Authorization 头，token 走查询参数
+  app.get('/api/stream', (req, res) => {
+    try { jwt.verify(String(req.query.token || ''), config.jwtSecret) }
+    catch { return fail(res, 401, '未登录或登录已过期') }
+    res.set({
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no'
+    })
+    res.write('retry: 3000\n\n')
+    const heartbeat = setInterval(() => res.write(': hb\n\n'), 30000) // 保活，防中间层掐空闲连接
+    heartbeat.unref?.() // 挂起的连接不应阻止进程退出
+    const onPush = m => res.write(`data: ${JSON.stringify(m)}\n\n`)
+    bus?.on('push', onPush)
+    req.on('close', () => { clearInterval(heartbeat); bus?.off('push', onPush) })
   })
 
   app.use('/api', (req, res, next) => {

@@ -1,5 +1,5 @@
 // 校验并登记设备自我介绍；非法报文记日志丢弃（协议 §3 处理规则）
-export function handleDiscovery(db, deviceId, payload) {
+export function handleDiscovery(db, bus, deviceId, payload) {
   let msg
   try { msg = JSON.parse(payload) } catch { return warn(deviceId, 'JSON 解析失败') }
   if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return warn(deviceId, '载荷不是 JSON 对象') // 'null'/'5'/'[]' 等
@@ -15,6 +15,7 @@ export function handleDiscovery(db, deviceId, payload) {
     description: msg.description ?? '', proto_ver: msg.proto_ver,
     caps_json: payload
   })
+  bus?.emit('push', { type: 'discovery', device_id: deviceId, name: msg.name })
 }
 
 function warn(id, reason) {
