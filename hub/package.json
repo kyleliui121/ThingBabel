@@ -1,0 +1,19 @@
+{
+  "name": "lab-hub",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "dev": "node scripts/dev.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "express": "^4.19.0",
+    "jsonwebtoken": "^9.0.2",
+    "mqtt": "^5.0.0"
+  },
+  "devDependencies": {
+    "aedes": "^0.51.0"
+  }
+}
