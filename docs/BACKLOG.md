@@ -5,13 +5,13 @@
 
 ## 健壮性
 
-1. **last_seen 过期看门狗**：hub 重启后设备在线状态依赖 retain 重放顺序（当前按主题排序恰好正确）；启动时先把所有设备置离线、靠 retain 重放纠正，再加 last_seen 超时判定——彻底消除顺序依赖。
-2. **body-parse 错误返回 400 + CORS 头**：畸形 JSON body 目前 500 且无 CORS 头（H5 端显示为不透明网络错误）；未知 `/api/*` 路由返回 JSON envelope 而非 Express HTML 404。
-3. **config 告警**：`jwtSecret`/`adminPassword` 用默认值时启动打警告；`config.json` 按 `process.cwd()` 解析，须在 hub/ 目录下启动（README 已写，可加守护）。
+1. ~~**last_seen 过期看门狗**~~ ✅ 2026-10-04：启动 `setAllOffline()` 交 retain 重放纠正 + `src/watchdog.js` 周期超时判定（`staleOfflineMinutes`，默认 15 分钟，0 关闭）。
+2. ~~**body-parse 错误返回 400 + CORS 头**~~ ✅ 2026-10-04：CORS 中间件提前到 json 解析前；畸形 JSON 返 400、超大返 413；未知 `/api/*` 返 JSON 404。
+3. ~~**config 告警**~~ ✅ 2026-10-04：默认 `adminPassword`/`jwtSecret` 启动告警（`configWarnings` 纯函数 + 测试）；`config.json` 按 `process.cwd()` 解析仍须在 hub/ 下启动（README 已写，cwd 守护未做，接受）。
 
 ## 功能补全
 
-4. **events 的 API/UI**：协议 §6 承诺"转发给手机端列表"，spec §4.4 未列端点——v2 规划时先在 spec 层解决这个不一致再实现。（注：SSE 流已推送 event 消息，REST 查询端点与 UI 仍缺。）
+4. **events 的 API/UI**：REST 查询端点 ✅ 2026-10-04（`GET /api/events?device_id=&limit=`，SSE 此前已实时推送）；**手机端事件列表 UI 仍缺**。
 
 ## 部署文档
 
@@ -19,7 +19,7 @@
 
 ## App 打磨
 
-6. 登录与指令按钮双击防抖（`if (loading) return`）；详情页 loadDetail 失败时不启实时订阅/轮询；`q.id` 缺失守卫；manifest 的 name/appid 填写。
+6. ~~登录与详情页守卫~~ ✅ 2026-10-04：登录双击防抖、`q.id` 缺失守卫、loadDetail 失败不启实时订阅、manifest name/description 已填。**appid 需在 HBuilderX 里生成（云打包前置），指令按钮防抖未做**。
 
 ## 设备固件（ESP32，待采购到货）
 
@@ -43,7 +43,8 @@
 - ✅ 遥测批量事务写入 + `synchronous=NORMAL`（原待办"遥测表清理"的写入侧；突发吞吐 6–7 倍）
 - ✅ 保留清理任务 `src/prune.js`（原待办 5：遥测/事件表无限增长——已解决；聚合表暂不做）
 - ✅ SSE 实时推送 `/api/stream` + app 轮询回退（原待办"空闲轮询可换 WebSocket"——以 SSE 方案完成）
-- 测试 22 → 27 项全过
+- ✅ 第二批（健壮性）：启动置离线 + last_seen 看门狗、畸形 body 400/JSON 404/CORS 顺序、config 默认值告警、events REST 查询、app 防抖与守卫
+- 测试 22 → 34 项全过
 
 ## 战略方向（设计稿 §10，不变）
 
