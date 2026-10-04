@@ -34,9 +34,13 @@ let stream = null
 let pollTimer = null
 
 onLoad(async q => {
+  if (!q?.id) {
+    uni.showToast({ title: '缺少设备 id', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 600)
+    return
+  }
   id = q.id
-  await loadDetail()
-  startLive()
+  if (await loadDetail()) startLive() // 详情加载失败（如设备已删）不启实时订阅，避免对着空气轮询
 })
 onUnmounted(stopLive)
 
@@ -45,7 +49,11 @@ async function loadDetail() {
     device.value = await request('GET', `/api/devices/${id}`)
     caps.value = device.value.caps || { properties: [], actions: [] }
     await loadProps()
-  } catch (e) { uni.showToast({ title: e.message, icon: 'none' }) }
+    return true
+  } catch (e) {
+    uni.showToast({ title: e.message, icon: 'none' })
+    return false
+  }
 }
 
 async function loadProps() {

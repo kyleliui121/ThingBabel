@@ -16,6 +16,7 @@ const password = ref('')
 const loading = ref(false)
 
 async function login() {
+  if (loading.value) return // 防双击重复提交
   if (!baseUrl.value || !password.value) return uni.showToast({ title: '地址和密码都要填', icon: 'none' })
   loading.value = true
   try {
