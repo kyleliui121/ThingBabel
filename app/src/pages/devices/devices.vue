@@ -17,22 +17,46 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { request } from '../../utils/request.js'
-import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
+import { subscribeStream } from '../../utils/sse.js'
+import { onShow, onHide, onPullDownRefresh } from '@dcloudio/uni-app'
 
 const devices = ref([])
+let stream = null
+let pollTimer = null
 
 async function load() {
   try { devices.value = await request('GET', '/api/devices') }
   catch (e) { uni.showToast({ title: e.message, icon: 'none' }) }
 }
 
+function applyPush(m) {
+  const d = devices.value.find(x => x.device_id === m.device_id)
+  if (m.type === 'props' && d) d.props = { ...d.props, [m.key]: { value: m.value, ts: m.ts } }
+  else if (m.type === 'status' && d) d.online = m.online
+  else if (m.type === 'discovery') load()
+}
+
+function stopLive() {
+  stream && stream.close()
+  stream = null
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = null
+}
+
+function startLive() {
+  stopLive()
+  stream = subscribeStream(applyPush, () => { pollTimer = setInterval(load, 3000) }) // SSE 不可用 → 3 秒轮询兜底
+}
+
 function go(d) {
   uni.navigateTo({ url: `/pages/device/device?id=${d.device_id}` })
 }
 
-onShow(load)
+onShow(() => { load(); startLive() })
+onHide(stopLive)
+onUnmounted(stopLive)
 onPullDownRefresh(async () => { await load(); uni.stopPullDownRefresh() })
 </script>
 

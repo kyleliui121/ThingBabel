@@ -5,7 +5,7 @@
       <text class="sub">{{ device.device_id }} · {{ device.online ? '在线' : '离线' }}</text>
     </view>
 
-    <view class="section">实时数据（3 秒自动刷新）</view>
+    <view class="section">实时数据</view>
     <view class="card" v-for="p in caps.properties" :key="p.key">
       <text class="label">{{ p.name }}</text>
       <text class="value">{{ props[p.key]?.value ?? '—' }} {{ p.unit }}</text>
@@ -24,19 +24,21 @@
 import { ref, onUnmounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { request } from '../../utils/request.js'
+import { subscribeStream } from '../../utils/sse.js'
 
 const device = ref(null)
 const caps = ref({ properties: [], actions: [] })
 const props = ref({})
 let id = ''
-let timer = null
+let stream = null
+let pollTimer = null
 
 onLoad(async q => {
   id = q.id
   await loadDetail()
-  timer = setInterval(loadProps, 3000)
+  startLive()
 })
-onUnmounted(() => clearInterval(timer))
+onUnmounted(stopLive)
 
 async function loadDetail() {
   try {
@@ -51,6 +53,24 @@ async function loadProps() {
     const list = await request('GET', `/api/devices/${id}/props`)
     props.value = Object.fromEntries(list.map(p => [p.key, { value: p.value, ts: p.ts }]))
   } catch {}
+}
+
+function applyPush(m) {
+  if (m.device_id !== id) return
+  if (m.type === 'props') props.value = { ...props.value, [m.key]: { value: m.value, ts: m.ts } }
+  else if (m.type === 'status' && device.value) device.value.online = m.online
+}
+
+function stopLive() {
+  stream && stream.close()
+  stream = null
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = null
+}
+
+function startLive() {
+  stopLive()
+  stream = subscribeStream(applyPush, () => { pollTimer = setInterval(loadProps, 3000) }) // SSE 不可用 → 3 秒轮询兜底
 }
 
 async function doAction(a) {
