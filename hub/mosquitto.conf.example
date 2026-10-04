@@ -1,0 +1,22 @@
+# 生产 broker 配置样例（覆盖 mosquitto 2.x 默认只监听 localhost 的行为）
+# 放到 mosquitto 安装目录，服务指向本文件。协议见 ../../docs/protocol.md §1/§9
+per_listener_settings true
+
+# 1883：TCP MQTT——开发板（ESP32）/ Node 设备用
+listener 1883
+protocol mqtt
+allow_anonymous true
+
+# 9001：WebSocket——浏览器/电视（web-screen、MQTT.js）用
+listener 9001
+protocol websockets
+allow_anonymous true
+
+persistence true
+persistence_location mosquitto/
+
+# ── 一设备一账号（协议 §9，建议启用）──────────────────────
+# 1) mosquitto_passwd -c passwd sensor-01        （每台设备一条，账号名 = device_id）
+# 2) 上面两个 listener 都改为：allow_anonymous false
+# 3) 追加：password_file passwd
+# 4) 设备固件连 broker 时带上对应的用户名密码

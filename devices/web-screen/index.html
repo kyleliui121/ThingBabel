@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lab Screen — 电视/浏览器展示端</title>
+<script src="./mqtt.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0f172a; color: #e2e8f0; font-family: system-ui, 'Microsoft YaHei', sans-serif; min-height: 100vh; }
+  header { display: flex; align-items: center; padding: 28px 48px; }
+  header h1 { font-size: 40px; flex: 1; }
+  #dot { width: 22px; height: 22px; border-radius: 50%; background: #ef4444; margin-right: 14px; }
+  #dot.on { background: #22c55e; }
+  #state { color: #94a3b8; font-size: 24px; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; padding: 0 48px 48px; }
+  .card { background: #1e293b; border-radius: 20px; padding: 32px; }
+  .card .name { font-size: 34px; font-weight: 700; margin-bottom: 6px; }
+  .card .sub { font-size: 20px; color: #64748b; margin-bottom: 20px; }
+  .prop { display: flex; justify-content: space-between; border-top: 1px solid #334155; padding: 14px 0; font-size: 26px; }
+  .prop .k { color: #94a3b8; }
+  .prop .v { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .off { opacity: .45; }
+  #banner { background: #b91c1c; text-align: center; padding: 16px; font-size: 26px; display: none; }
+</style>
+</head>
+<body>
+<div id="banner">连接已断开，自动重连中……</div>
+<header>
+  <div id="dot"></div>
+  <h1>实验室设备总览</h1>
+  <span id="state">连接中…</span>
+</header>
+<div id="grid"></div>
+
+<script>
+// 用法：直接打开即连本机 broker；跨机用 ?broker=ws://192.168.x.x:9001&id=screen-01
+const qs = new URLSearchParams(location.search)
+const BROKER = qs.get('broker') || `ws://${location.hostname || '127.0.0.1'}:9001`
+const ID = qs.get('id') || 'screen-01'
+
+const intro = {
+  proto_ver: 1, device_id: ID, name: '实验室大屏', type: 'screen',
+  description: '浏览器/电视展示端（web-screen 参考实现）',
+  properties: [], events: [],
+  actions: [{ name: 'reload', description: '刷新页面', params: [] }]
+}
+
+const devices = new Map() // device_id -> { name, online, props: Map }
+const $ = id => document.getElementById(id)
+const render = () => {
+  $('grid').innerHTML = [...devices.values()].map(d => `
+    <div class="card ${d.online ? '' : 'off'}">
+      <div class="name">${esc(d.name)}</div>
+      <div class="sub">${esc(d.id)} · ${d.online ? '在线' : '离线'}</div>
+      ${[...d.props].map(([k, v]) => `<div class="prop"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`).join('') || '<div class="sub">暂无遥测</div>'}
+    </div>`).join('') || '<div class="card"><div class="sub">等待设备接入…</div></div>'
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = String(s); return d.innerHTML }
+
+function onMessage(topic, payload) {
+  const p = payload.toString()
+  const m = topic.match(/^lab\/discovery\/(.+)$/)
+  if (m) { try { const j = JSON.parse(p); devices.set(j.device_id, { id: j.device_id, name: j.name, online: true, props: new Map() }) } catch {} return render() }
+  const s = topic.match(/^lab\/devices\/([^/]+)\/status$/)
+  if (s) { const d = devices.get(s[1]); if (d) d.online = p.trim() === 'online'; return render() }
+  const pr = topic.match(/^lab\/devices\/([^/]+)\/props\/(.+)$/)
+  if (pr) {
+    let d = devices.get(pr[1]); if (!d) { d = { id: pr[1], name: pr[1], online: true, props: new Map() }; devices.set(pr[1], d) }
+    d.props.set(pr[2], p); return render()
+  }
+  const ac = topic.match(/^lab\/devices\/([^/]+)\/actions\/([^/]+)$/)
+  if (ac && ac[1] === ID) {
+    let req = {}; try { req = JSON.parse(p) } catch {}
+    client.publish(`${topic}/result`, JSON.stringify({ action_id: req.action_id, status: 'ok', message: '' }), { qos: 1 })
+    if (ac[2] === 'reload') setTimeout(() => location.reload(), 300)
+  }
+}
+
+const client = mqtt.connect(BROKER, {
+  clientId: ID,
+  keepalive: 30,
+  will: { topic: `lab/devices/${ID}/status`, payload: 'offline', retain: true, qos: 1 } // 协议 §7 遗嘱
+})
+client.on('connect', () => {
+  $('dot').classList.add('on'); $('state').textContent = BROKER; $('banner').style.display = 'none'
+  client.publish(`lab/discovery/${ID}`, JSON.stringify(intro), { retain: true, qos: 1 })
+  client.publish(`lab/devices/${ID}/status`, 'online', { retain: true, qos: 1 })
+  client.subscribe('lab/discovery/+')
+  client.subscribe('lab/devices/+/status')
+  client.subscribe('lab/devices/+/props/+')
+  client.subscribe(`lab/devices/${ID}/actions/+`)
+})
+client.on('message', onMessage)
+client.on('reconnect', () => { $('dot').classList.remove('on'); $('banner').style.display = 'block' })
+client.on('error', () => {})
+</script>
+</body>
+</html>
