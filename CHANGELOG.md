@@ -5,6 +5,12 @@ README、论文文档、汇报材料只引用本文件，不再手写数字—�
 
 从 zip 开始：先在 `hub/`、`5-电脑设备端/mock-sensor/` 各自 `npm install`，否则测试起不来。
 
+## v0.1.5 — 2026-10-05（GitHub 开源准备）
+
+- 项目更名 **ThingBabel**（设备各说方言、被普适听懂；协议名 lab-proto 保持不变）；GitHub 仓库 `kyleliui121/ThingBabel`
+- README 双语化：中文全文 + English 精要（Highlights / Quick start / How to integrate / Status / Research）
+- 68 tests pass（未变，本版为文档与发布准备）
+
 ## v0.1.4 — 2026-10-04（评审第四轮：任务集去重与 README 口径）
 
 - **68 tests pass（node --test，0 fail）**；静态 `test()` 计数 = 68，与 runner 一致
