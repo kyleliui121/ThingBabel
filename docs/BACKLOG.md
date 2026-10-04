@@ -1,6 +1,7 @@
 # v2 待办清单
 
-来自 v1 分支 11 个任务的评审记录与最终全分支评审（2026-10-04）。按优先级排：
+来自 v1 分支 11 个任务的评审记录与最终全分支评审（2026-10-04）。按优先级排。
+2026-10-04 晚：按优化调研报告（`docs/research/2026-10-04-hub-and-device-optimizations.md`）执行了一批，见文末执行记录。
 
 ## 健壮性
 
@@ -10,28 +11,40 @@
 
 ## 功能补全
 
-4. **events 的 API/UI**：协议 §6 承诺"转发给手机端列表"，spec §4.4 未列端点——v2 规划时先在 spec 层解决这个不一致再实现。
-5. **遥测/事件表清理**：目前无限增长，需要 prune 策略（按条数或按天数）。
+4. **events 的 API/UI**：协议 §6 承诺"转发给手机端列表"，spec §4.4 未列端点——v2 规划时先在 spec 层解决这个不一致再实现。（注：SSE 流已推送 event 消息，REST 查询端点与 UI 仍缺。）
 
 ## 部署文档
 
-6. **mosquitto 2.x 说明**：默认只监听 localhost，生产部署文档需写明 listener 配置 + 协议 §9 一设备一账号的 passwd 配置步骤。
+5. **mosquitto 2.x 说明**：默认只监听 localhost，生产部署文档需写明 listener 配置 + 协议 §9 一设备一账号的 passwd 配置步骤。
 
 ## App 打磨
 
-7. 登录与指令按钮双击防抖（`if (loading) return`）；详情页 loadDetail 失败时不启 3 秒轮询；`q.id` 缺失守卫；manifest 的 name/appid 填写。
-8. 空闲轮询可换 WebSocket（设计稿押后项）。
+6. 登录与指令按钮双击防抖（`if (loading) return`）；详情页 loadDetail 失败时不启实时订阅/轮询；`q.id` 缺失守卫；manifest 的 name/appid 填写。
 
-## 参考实现（devices/mock）
+## 设备固件（ESP32，待采购到货）
 
-9. 温度随机游走加钳位；畸形 action_id 回执回 echo `req.action_id ?? ''`。
+7. **客户端库用 espMqttClient，不用 PubSubClient**：PubSubClient 已停止维护且 publish 仅支持 QoS 0，与协议"回执 QoS 1"冲突（优化报告 #3，已核实其官方 README）。
+8. **协议 0.2：deadband 差值上报 + 心跳兜底**：加能力位、升 proto_ver；稳态写入量可降一个数量级，电池设备必选（优化报告 #4）。设计稿先行，与实验设计文档 W1 固件任务合并推进。
+
+## 论文线（候选①，见 docs/paper/2026-10-04-candidate1-experiment-design.md）
+
+9. `src/agent.js`：映射规则（纯函数 + 单测，不依赖 LLM，可立即做）→ 编排循环 → 人工确认开关。
+10. 采购 ESP32×3 + SHT31×2 + 继电器×1；确定 LLM API 与版本记录。
 
 ## 已裁定不修（记录在案）
 
 - package-lock resolved 指向 npmmirror：npm 校验完整性哈希，内容固定，区域网络正常选择。
 - dev.js EADDRINUSE 原始堆栈：DX 打磨，fail-fast 行为可接受。
 - 兄弟 handler 直调 null 载荷：经 mqtt.js 路径不可达（payload 恒为 string），且 index.js 路由兜底 try/catch 已提供第二道防线。
+- CBOR/压缩、MQTT-SN/CoAP、换时序库、换 NanoMQ/FlashMQ：优化报告判定对本规模过度设计，各"不做"项的回头触发条件见报告。
+
+## 2026-10-04 执行记录（优化报告落地）
+
+- ✅ 遥测批量事务写入 + `synchronous=NORMAL`（原待办"遥测表清理"的写入侧；突发吞吐 6–7 倍）
+- ✅ 保留清理任务 `src/prune.js`（原待办 5：遥测/事件表无限增长——已解决；聚合表暂不做）
+- ✅ SSE 实时推送 `/api/stream` + app 轮询回退（原待办"空闲轮询可换 WebSocket"——以 SSE 方案完成）
+- 测试 22 → 27 项全过
 
 ## 战略方向（设计稿 §10，不变）
 
-AI 意图层（自我介绍即 tool schema）、语义自动生成 UI、控制权租约、时序回放、机器人适配器、ESP32 模板库、电视并入（第二块砖）。
+AI 意图层（自我介绍即 tool schema，已立项见论文线）、语义自动生成 UI、控制权租约、时序回放、机器人适配器、ESP32 模板库、电视并入（第二块砖）。

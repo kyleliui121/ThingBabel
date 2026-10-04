@@ -28,7 +28,7 @@ cd app && npm run dev:h5
 - [ ] 终端 1 控制台出现 sensor-01 登记日志——设备上线即自动登记，无任何手工配置
 - [ ] 打开 H5 → 登录页填服务器地址 `http://<本机局域网IP>:3000`、账号 `admin`、密码 `lab123`（hub/config.json 的 adminPassword）
 - [ ] 设备列表出现 sensor-01，带绿色在线圆点
-- [ ] 进入详情页：温度/湿度每 5 秒跳动一次
+- [ ] 进入详情页：温度/湿度即时跳动（DevTools Network 应有一条持续的 `/api/stream` EventSource 连接；关掉中枢后 3 秒内回退轮询）
 - [ ] 点 reboot → 出现成功 toast；约 2 秒后终端 2 的 mock 重新自我介绍（重新登记）
 - [ ] 在终端 2 按 Ctrl+C 杀掉 mock → 列表下拉刷新后 sensor-01 变灰显示"离线"（MQTT 遗嘱 LWT）
 - [ ] 重启 hub（保留 data.db）→ 设备与最后遥测仍在（retain 消息重放）
