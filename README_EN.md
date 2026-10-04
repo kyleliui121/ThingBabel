@@ -36,7 +36,7 @@ confirmed by receipts — with no per-device glue code, ever.
 | `devices/mock/` | Node.js mock sensor | **scripted device** template for any computer / Raspberry Pi |
 | `hub/src/agent/` | AI orchestration: capability manifests → LLM tool schemas with zero conversion | natural-language task entry point |
 | `hub/eval/` | Evaluation infrastructure: 30-task set, runner, M5 scaling, exact-match cache | reproduce the experiments |
-| `docs/` | Design docs, research reports, paper experiment design, backlog | background & planning |
+| `docs/` | Design docs & engineering backlog | background & planning |
 
 ## How to integrate (three consumer paths)
 
@@ -69,14 +69,14 @@ Login: `admin` / `lab123` (the `adminPassword` in hub/config.json — change it 
 
 ## Status
 
-- Test count and version facts: [CHANGELOG.md](CHANGELOG.md) is the single source of truth (currently v0.1.5)
+- Test count and version facts: [CHANGELOG.md](CHANGELOG.md) is the single source of truth (currently v0.1.6)
 - WS onboarding path verified end-to-end (browser connects to 9001 → auto-registration → last-will works)
 - ⚠️ ESP32 firmware is a **not-yet-hardware-verified template**; real LLM calls pending an API key
 - LAN-only by design — do not expose to the public internet (protocol §9)
 
 ## What's next
 
-See `docs/BACKLOG.md` and `docs/paper/2026-10-04-candidate1-experiment-design.md` (research line).
+See `docs/BACKLOG.md`.
 
 ## License
 

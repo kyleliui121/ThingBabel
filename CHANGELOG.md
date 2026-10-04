@@ -5,6 +5,13 @@ README、论文文档、汇报材料只引用本文件，不再手写数字—�
 
 从 zip 开始：先在 `hub/`、`5-电脑设备端/mock-sensor/` 各自 `npm install`，否则测试起不来。
 
+## v0.1.6 — 2026-10-05（公开仓内容裁剪）
+
+- 论文与调研文档移出公开仓：`docs/research/`（四份调研报告）与 `docs/paper/`（实验设计、指标口径）转入仓库外私有保管（`private/`，已 gitignore）——防止抢先披露与双盲审稿问题
+- 历史清除：`docs/research` 与 `docs/paper` 已从**全部提交历史**中移除（git filter-branch + 强制推送），仅浏览旧提交亦不可见
+- BACKLOG 的论文线小节改为私有指针；README 中英双语的相关引用同步清理；工程侧 BACKLOG 条目（含已完成记录）经备份后精简
+- 已知边界：不变（ESP32 未验证 / LLM 待 key）
+
 ## v0.1.5 — 2026-10-05（GitHub 开源准备）
 
 - 项目更名 **ThingBabel**（设备各说方言、被普适听懂；协议名 lab-proto 保持不变）；GitHub 仓库 `kyleliui121/ThingBabel`
