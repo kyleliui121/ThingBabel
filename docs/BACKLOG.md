@@ -28,7 +28,7 @@
 
 ## 论文线（候选①，见 docs/paper/2026-10-04-candidate1-experiment-design.md）
 
-9. `src/agent.js`：映射规则（纯函数 + 单测，不依赖 LLM，可立即做）→ 编排循环 → 人工确认开关。
+9. ~~`src/agent.js`：映射规则 + 编排循环 + 确认开关~~ ✅ 2026-10-04：`src/agent/`（map.js 映射 + index.js 编排 + llm.js 适配器 + cli.js 入口）完成，8 项测试覆盖查询/控制/确认拒绝/离线守卫/未知工具/步数上限。**真机 LLM 调用待填 llm.apiKey 后验证**。
 10. 采购 ESP32×3 + SHT31×2 + 继电器×1；确定 LLM API 与版本记录。
 
 ## 已裁定不修（记录在案）

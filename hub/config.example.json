@@ -5,5 +5,6 @@
   "adminPassword": "lab123",
   "jwtSecret": "改成一段随机字符串",
   "retentionDays": 90,
-  "staleOfflineMinutes": 15
+  "staleOfflineMinutes": 15,
+  "llm": { "apiKey": "", "model": "glm-4.7-flash", "baseUrl": "https://open.bigmodel.cn/api/paas/v4" }
 }

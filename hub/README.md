@@ -34,3 +34,15 @@ cd app && npm run dev:h5
 - [ ] 重启 hub（保留 data.db）→ 设备与最后遥测仍在（retain 消息重放）
 
 以上 2、6、7 条（登记日志、遗嘱下线、重启后 retain 重放）已于 2026-10-04 在本机用 curl 全链路验证通过（登录→列表遥测→reboot 回执 ok→杀进程离线→重启数据保留）；1、3、4、5 条涉及浏览器视觉效果，留待人工勾选。
+
+## AI 编排（论文候选①核心，src/agent/）
+
+设备自我介绍的能力清单直接映射为 LLM tool schema（零转换），自然语言任务经"规划→指令→回执→汇报"闭环执行：
+
+```bash
+# config.json 的 llm.apiKey 填入 BigModel API Key 后：
+node src/agent/cli.js "现在传感器多少度？"
+node src/agent/cli.js "重启一下传感器"
+```
+
+安全策略：sensor 类设备动作直接放行，其余类型 CLI 交互确认（y/N）。设计与评估方案见 `docs/paper/2026-10-04-candidate1-experiment-design.md`。

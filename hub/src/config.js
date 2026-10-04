@@ -15,7 +15,12 @@ export function loadConfig(file = 'config.json') {
     adminPassword: c.adminPassword ?? 'lab123',
     jwtSecret: c.jwtSecret ?? 'dev-secret-change-me',
     retentionDays: c.retentionDays ?? 90, // 遥测/事件保留天数，0 = 不清理
-    staleOfflineMinutes: c.staleOfflineMinutes ?? 15 // last_seen 超过该分钟数判离线，0 = 关闭看门狗
+    staleOfflineMinutes: c.staleOfflineMinutes ?? 15, // last_seen 超过该分钟数判离线，0 = 关闭看门狗
+    llm: {
+      apiKey: c.llm?.apiKey ?? '', // AI 编排用，空 = agent 不可用
+      model: c.llm?.model ?? 'glm-4.7-flash',
+      baseUrl: c.llm?.baseUrl ?? 'https://open.bigmodel.cn/api/paas/v4'
+    }
   }
   for (const w of configWarnings(merged)) console.warn(`[config] ${w}`)
   return merged
