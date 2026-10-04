@@ -1,0 +1,7 @@
+{
+  "name": "mock-sensor",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": { "start": "node mock-sensor.js" },
+  "dependencies": { "mqtt": "^5.0.0" }
+}
