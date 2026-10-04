@@ -1,0 +1,7 @@
+{
+  "port": 3000,
+  "mqttUrl": "mqtt://127.0.0.1:1883",
+  "dbFile": "data.db",
+  "adminPassword": "lab123",
+  "jwtSecret": "改成一段随机字符串"
+}
