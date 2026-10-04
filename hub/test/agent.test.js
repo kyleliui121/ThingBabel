@@ -119,3 +119,19 @@ test('步数上限：连续工具调用超过 maxSteps 时中止', async () => {
   assert.equal(r.aborted, true)
   assert.equal(r.steps, 2)
 })
+
+test('事件工具：lab_get_recent_events 返回已入库事件（异常→编排地基）', async () => {
+  const s = mkStack()
+  s.db.insertEvent('sensor-01', 'anomaly', '{"severity":"warn"}', new Date().toISOString())
+  const agent = createAgent({
+    db: s.db, actions: s.actions,
+    callLLM: scripted([
+      { content: '', tool_calls: [call('t1', 'lab_get_recent_events', { device_id: 'sensor-01' })] },
+      { content: '有一条温度异常告警', tool_calls: [] }
+    ])
+  })
+  const r = await agent.run('有什么异常吗？')
+  assert.equal(r.log[0].status, 'ok')
+  assert.equal(r.log[0].events.length, 1)
+  assert.equal(r.log[0].events[0].name, 'anomaly')
+})

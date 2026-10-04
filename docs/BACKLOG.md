@@ -33,8 +33,9 @@
 11. ~~OTel GenAI 兼容 trace~~ ✅ 2026-10-04（第三轮调研 A2，实验设计 §3.5）：`src/agent/trace.js` + `traces` 表 + `GET /api/traces[/:id]`；root→chat→tool 父子链（修了 chat span 未挂 root 的 bug，回归测试已锁）。**W4 前置达成**。
 12. ~~W2' 三件套~~ ✅ 2026-10-04：**M5 基建**（`scripts/fleet.js` 设备群 + `map.js#selectTools` 确定性分组 + agent `toolMode`）、**评测 runner**（`eval/run.js`：任务集 30 骨架 + 精确缓存 `eval/cache.js` + M2/M4 自动判分出 CSV/JSON，B2 基线内置）、**B4 MCP 基线**（`src/mcp.js` JSON-RPC + `eval/b4-manifest.json` 手工注册清单）。
 13. ~~系统配套~~ ✅ 2026-10-04：EWMA 异常检测 `src/anomaly.js`（Welford，`anomalyZ` 配置，event 入库+SSE）；协议 0.2 deadband 在 mock 仿真（`DEADBAND`/`HEARTBEAT_S` 环境变量）；**指标口径文档** `docs/paper/metrics-definitions.md`（M1-M5 定义/统计/排除规则，W4 前冻结）。
-14. W3 待办：任务集内容定稿并冻结哈希（`eval/tasks.json` 仍是 draft 骨架）；B1 基线实现；discovery 快照进 runner run 目录。
-15. W4-W5：`npm run eval` 真跑（填 llm.apiKey 后）+ 故障注入 + M5 曲线采集。
+14. ~~B1 基线~~ ✅ 2026-10-04：runner `--baseline b1`（手写 schema 行数按设备数线性计量进 `m1_access_cost`）；**任务集内容定稿待需求方参与**，定稿后 `npm run freeze-tasks` 冻结哈希。
+15. W4-W5：`npm run eval` 真跑（填 llm.apiKey 后）+ 故障注入 + `npm run m5` 曲线采集（工具数 10/50/100/200，含 discovery 快照与 M1 成本自动计量）。
+16. ✅ 2026-10-04 晚：runner 增强——`extraSensors`（M5 规模）、**discovery 快照落盘**（实验设计 §3.5）、B1 基线、agent 新增 `lab_get_recent_events` 工具（异常→编排，N3 地基）、`npm run export-traces`（论文附录 trace 包）、`npm run freeze-tasks`（任务集哈希冻结）。测试 57 → 59。
 
 ## 已裁定不修（记录在案）
 

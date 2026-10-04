@@ -41,7 +41,7 @@ test('buildRegistry：内置状态工具 + 设备工具 + prompt 含遥测快照
   assert.match(reg.prompt, /在线/)
 })
 
-test('selectTools：任务提及某设备 → 只留该设备工具+状态工具；无命中回退全量', () => {
+test('selectTools：任务提及某设备 → 只留该设备工具+内建工具；无命中回退全量', () => {
   const db = createDb(':memory:')
   const mk = (id, name, type, actions) => db.upsertDevice({
     device_id: id, name, type, description: '', proto_ver: 1,
@@ -51,10 +51,10 @@ test('selectTools：任务提及某设备 → 只留该设备工具+状态工具
   mk('fan-01', '风扇', 'actuator', [{ name: 'set_speed', description: '调速', params: [] }])
   mk('arm-01', '机械臂', 'arm', [{ name: 'move', description: '移动', params: [] }])
   const all = buildRegistry(db).tools
-  assert.equal(all.length, 4) // 状态工具 + 3 设备工具
+  assert.equal(all.length, 5) // 状态工具 + 事件工具 + 3 设备工具
 
   const hit = selectTools(db, '把风扇 fan-01 调到 2 档', all)
-  assert.deepEqual(hit.map(t => t.function.name).sort(), ['fan-01__set_speed', 'lab_get_device_state'])
+  assert.deepEqual(hit.map(t => t.function.name).sort(), ['fan-01__set_speed', 'lab_get_device_state', 'lab_get_recent_events'])
 
   const byType = selectTools(db, '重启所有 sensor 设备', all) // type 字面命中
   assert.ok(byType.some(t => t.function.name === 'sensor-01__reboot'))

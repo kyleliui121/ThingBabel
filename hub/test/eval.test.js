@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { withExactCache } from '../eval/cache.js'
 import { runEval } from '../eval/run.js'
 
@@ -35,7 +36,7 @@ test('runner 端到端：脚本化 LLM × 3 任务 × 2 重复，判分/缓存/�
   const outDir = path.join(os.tmpdir(), `eval-${Date.now()}`)
 
   const { summary, results, jsonPath, csvPath } = await runEval({
-    tasksFile, repeats: 2, outDir, callLLM: scripted, telemetryTicks: 1
+    tasksFile, repeats: 2, outDir, callLLM: scripted, telemetryTicks: 1, extraSensors: 2
   })
 
   assert.equal(results.length, 3)
@@ -46,9 +47,28 @@ test('runner 端到端：脚本化 LLM × 3 任务 × 2 重复，判分/缓存/�
   assert.equal(summary.byCategory.T5.successRate, 1)
   assert.ok(summary.cache.hits >= 3, `重复任务应命中缓存（实际 ${JSON.stringify(summary.cache)}）`)
   assert.ok(summary.latency.traces === 6)
+  assert.equal(summary.config.extraSensors, 2)
+  assert.equal(summary.m1_access_cost.mode, 'ours（discovery 零转换）')
   assert.ok(fs.existsSync(jsonPath) && fs.existsSync(csvPath))
+  // discovery 快照（实验设计 §3.5）+ M5 规模设备确实入网
+  const discoveryFile = fs.readdirSync(outDir).find(f => f.includes('-discovery.json'))
+  assert.ok(discoveryFile, '应有 discovery 快照文件')
+  const snap = JSON.parse(fs.readFileSync(path.join(outDir, discoveryFile), 'utf8'))
+  assert.equal(snap.extra_sensors, 2)
+  assert.ok(snap.devices.some(d => d.device_id === 'fleet-m-001'))
   const csv = fs.readFileSync(csvPath, 'utf8')
   assert.match(csv, /T1-01,T1,1/)
   fs.rmSync(outDir, { recursive: true, force: true })
   fs.rmSync(tasksFile, { force: true })
+})
+
+test('M1 基线成本：b1 按设备数线性计量，b2/b4 有说明性输出', async () => {
+  const outDir = path.join(os.tmpdir(), `eval-b1-${Date.now()}`)
+  const { summary } = await runEval({
+    tasksFile: path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'eval', 'tasks.json'),
+    repeats: 1, outDir, callLLM: async () => ({ content: 'ok', tool_calls: [] }), baseline: 'b1'
+  })
+  assert.equal(summary.m1_access_cost.mode, 'b1 手工接入')
+  assert.ok(summary.m1_access_cost.total_lines > 0)
+  fs.rmSync(outDir, { recursive: true, force: true })
 })

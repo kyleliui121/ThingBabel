@@ -8,6 +8,9 @@
     "soak": "node scripts/soak.js",
     "fleet": "node scripts/fleet.js",
     "eval": "node eval/run.js",
+    "m5": "node eval/m5.js",
+    "export-traces": "node scripts/export-traces.js",
+    "freeze-tasks": "node scripts/freeze-tasks.js",
     "start": "node src/index.js"
   },
   "dependencies": {

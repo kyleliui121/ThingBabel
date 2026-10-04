@@ -2,7 +2,7 @@
 // "零转换证据"：本文件即全部适配层；新设备接入不产生任何新代码或配置。
 const TYPE_MAP = { number: 'number', string: 'string', boolean: 'boolean' } // 白名单外的类型降级 string
 
-// 内置工具：读设备状态（properties 不生成工具，遥测通过它按需查询）
+// 内置工具：读设备状态（properties 不生成工具，遥测通过它按需查询）+ 读最近事件（anomaly 报警等，"检测→编排"地基）
 const STATE_TOOL = {
   type: 'function',
   function: {
@@ -15,6 +15,22 @@ const STATE_TOOL = {
     }
   }
 }
+const EVENT_TOOL = {
+  type: 'function',
+  function: {
+    name: 'lab_get_recent_events',
+    description: '查询最近的设备事件与异常告警（如 anomaly：某属性偏离滚动均值）',
+    parameters: {
+      type: 'object',
+      properties: {
+        device_id: { type: 'string', description: '可选，只看某台设备' },
+        limit: { type: 'number', description: '条数，默认 10' }
+      },
+      required: []
+    }
+  }
+}
+const ALWAYS_INCLUDED = new Set(['lab_get_device_state', 'lab_get_recent_events'])
 
 export function capsToTools(caps, deviceId) {
   return (caps.actions || []).map(a => ({
@@ -40,7 +56,7 @@ export function capsToTools(caps, deviceId) {
 
 // 注册表快照：全部设备的 tools + system prompt 文本（含当前遥测值）
 export function buildRegistry(db) {
-  const tools = [STATE_TOOL]
+  const tools = [STATE_TOOL, EVENT_TOOL]
   const lines = []
   for (const d of db.listDevices()) {
     let caps = {}
@@ -62,12 +78,12 @@ export function buildRegistry(db) {
 // 无任何命中则回退全量（任务大概率是全局性的）。纯字符串匹配，不用 embedding（第三轮调研 A1.1 判定该规模为过度设计）
 export function selectTools(db, taskText, allTools) {
   const matched = allTools.filter(t => {
-    if (t === STATE_TOOL || t.function?.name === 'lab_get_device_state') return true
+    if (ALWAYS_INCLUDED.has(t.function?.name)) return true
     const sep = t.function.name.indexOf('__')
     if (sep < 0) return false
     const d = db.getDevice(t.function.name.slice(0, sep))
     if (!d) return false
     return taskText.includes(d.device_id) || taskText.includes(d.name) || taskText.includes(d.type)
   })
-  return matched.length > 1 ? matched : allTools // 只剩状态工具 = 没匹配到任何设备，回退全量
+  return matched.length > ALWAYS_INCLUDED.size ? matched : allTools // 只剩内建工具 = 没匹配到任何设备，回退全量
 }

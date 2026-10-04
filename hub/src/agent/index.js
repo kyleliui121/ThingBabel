@@ -74,6 +74,11 @@ async function doTool(name, args, { db, actions, confirm, resultWaitMs }) {
     return { status: 'ok', device_id: d.device_id, props }
   }
 
+  if (name === 'lab_get_recent_events') {
+    const limit = Math.max(1, Math.min(Number(args.limit) || 10, 50))
+    return { status: 'ok', events: db.recentEvents({ deviceId: args.device_id || undefined, limit }) }
+  }
+
   const sep = name.indexOf('__')
   if (sep < 0) return { status: 'error', message: `未知工具 ${name}` }
   const deviceId = name.slice(0, sep)
