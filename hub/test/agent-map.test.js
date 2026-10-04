@@ -14,6 +14,9 @@ test('validateParams：必填/越界/枚举/类型逐项拦截，合法放行', 
   assert.equal(validateParams(speedAction, { level: 2 }), null)
   assert.match(validateParams(modeAction, { mode: 'turbo' }), /不在允许值/)
   assert.equal(validateParams(modeAction, { mode: 'fast' }), null)
+  // 额外参数（additionalProperties:false 语义，评审第三轮③）：声明的都合法 ≠ 传入的都属声明域
+  assert.match(validateParams(speedAction, { level: 2, hack: true }), /未声明的参数 hack/)
+  assert.match(validateParams({ name: 'x', params: [] }, { anything: 1 }), /未声明的参数/)
   // 未声明 min/max 的纯 number 只查有限性；可选参数缺省放行
   assert.equal(validateParams({ name: 'x', params: [{ name: 't', type: 'number' }] }, { t: 1.5 }), null)
   assert.equal(validateParams({ name: 'x', params: [{ name: 'opt' }] }, {}), null)

@@ -117,8 +117,9 @@ export function createDb(file = ':memory:') {
         .run({ ...a, ts: now() })
     },
     updateAction(actionId, { status, message = '' }) {
-      db.prepare(`UPDATE actions_log SET status=?, message=?, updated_at=?
-        WHERE action_id=? AND status='pending'`).run(status, message, now(), actionId)
+      // 返回实际更新行数：0 = 已非 pending（迟到回执），调用方据此决定是否广播
+      return db.prepare(`UPDATE actions_log SET status=?, message=?, updated_at=?
+        WHERE action_id=? AND status='pending'`).run(status, message, now(), actionId).changes
     },
     getAction(actionId) {
       return db.prepare('SELECT * FROM actions_log WHERE action_id=?').get(actionId)

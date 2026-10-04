@@ -5,6 +5,13 @@ README、论文文档、汇报材料只引用本文件，不再手写数字—�
 
 从 zip 开始：先在 `hub/`、`5-电脑设备端/mock-sensor/` 各自 `npm install`，否则测试起不来。
 
+## v0.1.3 — 2026-10-04（评审第三轮：参数域封闭与回执不变量）
+
+- **67 tests pass（node --test，0 fail）**；静态 `test()` 计数 = 67，与 runner 一致
+- 参数域封闭（③）：`validateParams` 拒绝**未声明的额外参数**（`additionalProperties:false` 语义）——`{level:2, hack:true}` 整体拒发；参数级授权从"声明项合法"升级为"传入项 ∈ 声明域"
+- 回执不变量（④）：`accept(result) ⟺ action_id 存在 ∧ device_id 匹配 ∧ **action_name 匹配** ∧ status ∈ 枚举 ∧ **指令仍为 pending**`——修复两个暗坑：同设备把回执挂到别的动作主题可伪造成功；迟到回执（timeout 后）不改库却广播"ok"（updateAction 返回实际更新行数作为接受依据）
+- 已知边界：ESP32 固件未硬件验证；LLM 真机调用未验证（待 API key）；`T4-03/05` 判定仍为兜底级
+
 ## v0.1.2 — 2026-10-04（评审第二轮：参数级授权与判分硬化）
 
 - **65 tests pass（node --test，0 fail）**；静态 `test()` 计数 = 65，与 runner 一致

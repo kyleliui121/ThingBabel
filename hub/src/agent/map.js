@@ -75,8 +75,12 @@ export function buildRegistry(db) {
 }
 
 // 参数级授权（评审第二轮）：动作名对还不够，参数必须落在设备声明的能力域内——
-// required/数值/min/max/enum 逐一校验。返回 null = 通过，字符串 = 拒绝原因
+// required/数值/min/max/enum 逐一校验；未声明的额外参数一律拒绝（additionalProperties:false 语义，
+// 评审第三轮③）。返回 null = 通过，字符串 = 拒绝原因
 export function validateParams(action, args = {}) {
+  const declared = new Set((action.params || []).map(p => p.name))
+  for (const k of Object.keys(args))
+    if (!declared.has(k)) return `未声明的参数 ${k}，拒绝（只允许 ${[...declared].join('/') || '无参数'}）`
   for (const p of action.params || []) {
     const v = args[p.name]
     if (v === undefined || v === null || v === '') {

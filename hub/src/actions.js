@@ -17,13 +17,17 @@ export function createActions({ publish, db, timeoutMs = 5000 }) {
       }, timeoutMs))
       return { action_id }
     },
-    onResult(actionId, status, message = '', deviceId = null) {
+    // 回执不变量（评审第三轮④）：accept(result) ⟺ action_id 存在 ∧ device_id 匹配 ∧ action_name 匹配
+    // ∧ status ∈ 枚举（handler 层校验）∧ 指令仍为 pending。任一不满足 → 不改库、不广播
+    onResult(actionId, status, message = '', deviceId = null, actionName = null) {
       const a = db.getAction(actionId)
       if (!a) return false // 未知 action_id：忽略（可能是重放或伪造）
-      if (deviceId && a.device_id !== deviceId) return false // 回执只能结束其指令所属设备的指令
+      if (deviceId && a.device_id !== deviceId) return false // 回执只能来自其指令所属的设备
+      if (actionName && a.action_name !== actionName) return false // 回执只能挂在同一动作的 result 主题上
+      const changes = db.updateAction(actionId, { status, message })
+      if (!changes) return false // 已终态（迟到回执）：不改库、不广播
       const t = timers.get(actionId)
       if (t) { clearTimeout(t); timers.delete(actionId) }
-      db.updateAction(actionId, { status, message })
       return true // 返回值决定是否广播 SSE——拒收的消息不得让展示层"假成功"
     }
   }

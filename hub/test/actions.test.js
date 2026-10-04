@@ -99,3 +99,27 @@ test('onResult 返回布尔：拒收的回执不得广播 SSE（事实层/展示
   assert.equal(pushes.length, 1)
   assert.equal(pushes[0].status, 'ok')
 })
+
+test('action_name 绑定（评审③轮④）：同一设备把回执发到别的动作主题上不得生效', () => {
+  const db = createDb(':memory:')
+  const actions = createActions({ publish: () => {}, db, timeoutMs: 1000 })
+  db.upsertDevice({ device_id: 'fan-01', name: 'f', type: 'actuator', description: '', proto_ver: 1, caps_json: '{}' })
+  const { action_id } = actions.dispatch('fan-01', 'set_speed', {})
+  assert.equal(actions.onResult(action_id, 'ok', '', 'fan-01', 'reboot'), false, 'action_name 不匹配 → false')
+  assert.equal(db.getAction(action_id).status, 'pending')
+  assert.equal(actions.onResult(action_id, 'ok', '', 'fan-01', 'set_speed'), true)
+  assert.equal(db.getAction(action_id).status, 'ok')
+})
+
+test('迟到回执：timeout 后到达不改库、不广播（pending 是接受的前提）', async () => {
+  const db = createDb(':memory:')
+  const actions = createActions({ publish: () => {}, db, timeoutMs: 50 })
+  const pushes = []
+  const bus = { emit: (ev, m) => pushes.push(m) }
+  const { action_id } = actions.dispatch('d1', 'reboot', {})
+  await new Promise(r => setTimeout(r, 90)) // 等 hub 侧置 timeout
+  assert.equal(db.getAction(action_id).status, 'timeout')
+  handleResult(actions, bus, 'd1', 'reboot', JSON.stringify({ action_id, status: 'ok' })) // 迟到的 ok
+  assert.equal(db.getAction(action_id).status, 'timeout', '迟到 ok 不得覆盖 timeout')
+  assert.equal(pushes.length, 0, '迟到回执不得广播')
+})

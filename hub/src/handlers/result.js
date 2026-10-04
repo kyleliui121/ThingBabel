@@ -8,7 +8,7 @@ export function handleResult(actions, bus, deviceId, name, payload) {
   if (!msg || !msg.action_id || !msg.status) return
   if (!VALID_STATUS.has(msg.status)) return
   const message = typeof msg.message === 'string' ? msg.message : ''
-  const accepted = actions.onResult(msg.action_id, msg.status, message, deviceId)
-  if (!accepted) return // 事实层拒收（跨设备/未知 id）就不广播——展示层不得假成功
+  const accepted = actions.onResult(msg.action_id, msg.status, message, deviceId, name)
+  if (!accepted) return // 事实层拒收（跨设备/换动作主题/迟到）就不广播——展示层不得假成功
   bus?.emit('push', { type: 'action', device_id: deviceId, action: name, action_id: msg.action_id, status: msg.status, message })
 }
