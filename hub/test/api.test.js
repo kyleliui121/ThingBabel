@@ -90,6 +90,50 @@ test('CORS 头存在（uni-app H5 需要）', async () => {
   s.close()
 })
 
+test('畸形 JSON body 返回 400 且带 CORS 头', async () => {
+  const s = await startApi()
+  const r = await fetch(s.base + '/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{bad json'
+  })
+  assert.equal(r.status, 400)
+  assert.equal(r.headers.get('access-control-allow-origin'), '*')
+  assert.equal((await r.json()).code, 1)
+  s.close()
+})
+
+test('未知 /api 路由返回 JSON 404 而非 HTML', async () => {
+  const s = await startApi()
+  const { data: { token } } = await (await s.call('POST', '/api/login', { password: 'pw' })).json()
+  const r = await s.call('GET', '/api/nope', null, token)
+  assert.equal(r.status, 404)
+  const body = await r.json()
+  assert.equal(body.code, 1)
+  assert.equal(body.message, '未知接口')
+  s.close()
+})
+
+test('events 查询 API：按设备过滤、倒序、limit 生效', async () => {
+  const s = await startApi()
+  const { data: { token } } = await (await s.call('POST', '/api/login', { password: 'pw' })).json()
+  s.db.upsertDevice({ ...intro, caps_json: JSON.stringify(intro) })
+  const ts = new Date().toISOString()
+  s.db.insertEvent('sensor-01', 'alarm', '{"severity":"warn"}', ts)
+  s.db.insertEvent('sensor-01', 'motion', '{}', ts)
+  s.db.insertEvent('other-01', 'beep', '{}', ts)
+
+  const all = (await (await s.call('GET', '/api/events', null, token)).json()).data
+  assert.equal(all.length, 3)
+  assert.equal(all[0].name, 'beep') // 最新在前
+
+  const mine = (await (await s.call('GET', '/api/events?device_id=sensor-01&limit=1', null, token)).json()).data
+  assert.equal(mine.length, 1)
+  assert.equal(mine[0].device_id, 'sensor-01')
+  assert.equal(mine[0].name, 'motion')
+  s.close()
+})
+
 test('SSE 流：无 token 401，有 token 收到实时推送', async () => {
   const s = await startApi()
   const { data: { token } } = await (await s.call('POST', '/api/login', { password: 'pw' })).json()

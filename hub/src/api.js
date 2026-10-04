@@ -6,9 +6,8 @@ const fail = (res, status, message) => res.status(status).json({ code: 1, messag
 
 export function createApi({ db, actions, config, bus = null }) {
   const app = express()
-  app.use(express.json())
 
-  // H5 开发期跨域
+  // H5 开发期跨域——必须放在 express.json() 之前，畸形 body 的错误响应也要带 CORS 头
   app.use((req, res, next) => {
     res.set('Access-Control-Allow-Origin', '*')
     res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
@@ -16,6 +15,7 @@ export function createApi({ db, actions, config, bus = null }) {
     if (req.method === 'OPTIONS') return res.sendStatus(204)
     next()
   })
+  app.use(express.json())
 
   app.post('/api/login', (req, res) => {
     const { password } = req.body || {}
@@ -97,7 +97,19 @@ export function createApi({ db, actions, config, bus = null }) {
     return wrap(res, a)
   })
 
+  // 事件查询（协议 §6 承诺的"转发给手机端列表"，SSE 已实时推送，此处补 REST 查询）
+  app.get('/api/events', (req, res) => {
+    const deviceId = String(req.query.device_id || '')
+    const limit = Math.max(1, Math.min(Number(req.query.limit) || 50, 500)) // 负数 LIMIT 在 SQLite 里等于无限制
+    return wrap(res, db.recentEvents({ deviceId: deviceId || undefined, limit }))
+  })
+
+  // 未知 /api/* 路由：JSON envelope 而非 Express 的 HTML 404（BACKLOG #2）
+  app.use('/api', (req, res) => fail(res, 404, '未知接口'))
+
   app.use((err, req, res, next) => {
+    if (err?.type === 'entity.parse.failed') return fail(res, 400, '请求体不是合法 JSON')
+    if (err?.type === 'entity.too.large') return fail(res, 413, '请求体过大')
     console.error('[api]', err)
     return fail(res, 500, '服务器内部错误')
   })

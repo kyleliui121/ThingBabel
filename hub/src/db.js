@@ -53,8 +53,15 @@ export function createDb(file = ':memory:') {
       db.prepare('UPDATE devices SET online=?, last_seen=?, updated_at=? WHERE device_id=?')
         .run(online ? 1 : 0, now(), now(), deviceId)
     },
-    touch(deviceId) {
-      db.prepare('UPDATE devices SET last_seen=? WHERE device_id=?').run(now(), deviceId)
+    setAllOffline() {
+      return db.prepare('UPDATE devices SET online=0, updated_at=?').run(now()).changes
+    },
+    setOnlineWhereStale(cutoffIso) {
+      return db.prepare(`UPDATE devices SET online=0, updated_at=?
+        WHERE online=1 AND (last_seen IS NULL OR last_seen < ?)`).run(now(), cutoffIso).changes
+    },
+    touch(deviceId, ts = now()) {
+      db.prepare('UPDATE devices SET last_seen=? WHERE device_id=?').run(ts, deviceId)
     },
     getDevice(id) {
       return db.prepare('SELECT * FROM devices WHERE device_id=?').get(id)
@@ -103,6 +110,12 @@ export function createDb(file = ':memory:') {
     insertEvent(deviceId, name, payloadJson, ts) {
       db.prepare('INSERT INTO events(device_id,name,payload_json,ts) VALUES(?,?,?,?)')
         .run(deviceId, name, payloadJson, ts)
+    },
+    recentEvents({ deviceId, limit = 50 } = {}) {
+      const stmt = deviceId
+        ? db.prepare('SELECT device_id, name, payload_json, ts FROM events WHERE device_id = ? ORDER BY id DESC LIMIT ?')
+        : db.prepare('SELECT device_id, name, payload_json, ts FROM events ORDER BY id DESC LIMIT ?')
+      return deviceId ? stmt.all(deviceId, limit) : stmt.all(limit)
     }
   }
 }

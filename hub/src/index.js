@@ -6,10 +6,12 @@ import { createActions } from './actions.js'
 import { makeHandlers, route } from './router.js'
 import { createApi } from './api.js'
 import { startPruneJob } from './prune.js'
+import { startWatchdog } from './watchdog.js'
 
 const config = loadConfig()
 const db = createDb(config.dbFile)
 db.failPendingActions() // 重启时清空悬挂指令（设计稿 §7）
+db.setAllOffline() // 启动一律视为离线，retain 重放（status/props）纠正真实在线者——消除重放顺序依赖（BACKLOG #1）
 
 const client = mqtt.connect(config.mqttUrl)
 const actions = createActions({
@@ -33,3 +35,4 @@ const app = createApi({ db, actions, config, bus })
 app.listen(config.port, () => console.log(`[api]  http://<本机IP>:${config.port}`))
 
 startPruneJob({ db, retentionDays: config.retentionDays }) // 遥测/事件按保留天数清理（优化报告 #2）
+startWatchdog({ db, staleMs: config.staleOfflineMinutes * 60_000 }) // last_seen 超时判离线（BACKLOG #1）
