@@ -8,6 +8,17 @@ import { createReorderBuffer } from '../src/reorder.js'
 
 export const wait = (ms) => new Promise(r => setTimeout(r, ms))
 
+// 条件等待：轮询直到 fn() 返回真值（CI 慢机器上固定 sleep 会踩空——评审第五轮 CI 实测）
+export async function waitFor(fn, { timeoutMs = 5000, intervalMs = 50, label = 'condition' } = {}) {
+  const t0 = Date.now()
+  for (;;) {
+    const v = await fn()
+    if (v) return v
+    if (Date.now() - t0 > timeoutMs) throw new Error(`waitFor 超时: ${label}`)
+    await wait(intervalMs)
+  }
+}
+
 export async function startStack({ timeoutMs = 200 } = {}) {
   const broker = aedes()
   const server = net.createServer(broker.handle)
