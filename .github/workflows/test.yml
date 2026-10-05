@@ -34,7 +34,15 @@ jobs:
       - name: 失败时输出测试日志尾部（公开可见，免登录排查）
         if: failure()
         shell: bash
-        run: tail -n 120 test-output.log || true
+        run: |
+          {
+            echo "### 测试失败尾部（node ${{ matrix.node-version }}）"
+            echo '```'
+            grep -E '✖|not ok|Error:|AssertionError|ℹ (tests|pass|fail)' test-output.log | tail -30
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          SUM=$(grep -E '✖|not ok|Error:|AssertionError|ℹ (tests|pass|fail)' test-output.log | tail -12 | cut -c1-260 | tr '\n' '|')
+          echo "::error::${SUM:0:3900}"
       - name: 冒烟：中枢能启动并监听端口
         run: |
           node scripts/dev.js &
