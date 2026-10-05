@@ -5,6 +5,14 @@ README、论文文档、汇报材料只引用本文件，不再手写数字—�
 
 从 zip 开始：先在 `hub/`、`5-电脑设备端/mock-sensor/` 各自 `npm install`，否则测试起不来。
 
+## v0.1.8 — 2026-10-05（CI 真凶修复：better-sqlite3 原生崩溃）
+
+- **CI Node 24 失败根因**：better-sqlite3 v11.x 在 Node 24 上 `Statement` 析构触发 `RemoveEnvironmentCleanupHook` 断言（`(env) != nullptr`）→ 进程 abort → 8 个测试文件整体崩溃。不是测试时序问题（此前两轮时序加固保留，属防御性改进）
+- 修复：**better-sqlite3 升级 v11 → v13.0.3**（支持 Node 24）；本地 70/70 验证
+- 支持线调整：Node 20 已于 2026-04 EOL，且 v13 要求 Node ≥22——engines 改 `>=22`，CI 矩阵改 **[22, 24]**
+- CI 诊断基建：失败时测试日志自动推到 `ci-logs` 分支（公开 API 免登录可读）+ step summary + error 注解——本次真凶即由此通道定位
+- 70 tests pass
+
 ## v0.1.7 — 2026-10-05（评审第五轮：可复现性与 CI）
 
 - **70 tests pass（node --test），0 fail**；静态 `test()` 计数 = 70，与 runner 一致

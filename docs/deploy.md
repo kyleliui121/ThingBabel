@@ -5,7 +5,7 @@
 
 ## 0. 前置
 
-- Node.js LTS（20+）
+- Node.js LTS（22+；Node 20 已于 2026-04 EOL，better-sqlite3 v13 要求 >=22）
 - 电脑在路由器上做 **DHCP 静态绑定**固定内网 IP（下文以 `192.168.1.100` 代称）
 - 防火墙放行入站端口：**3000**（API/SSE）、**1883**（MQTT TCP）、**9001**（MQTT WebSocket）
 

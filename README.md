@@ -60,7 +60,7 @@ cd devices/mock && npm start      # 终端2：模拟传感器，上线即自动�
 
 ## 状态
 
-- hub 测试通过数与版本事实以 [CHANGELOG.md](CHANGELOG.md) 为唯一来源（当前 v0.1.7）
+- hub 测试通过数与版本事实以 [CHANGELOG.md](CHANGELOG.md) 为唯一来源（当前 v0.1.8）
 - WS 接入路径已端到端验证（浏览器方式连 9001 → 自动登记 → 遗嘱生效）
 - ⚠️ ESP32 固件是**未硬件验证的模板**；LLM 真机调用待填 API key
 - 局域网专用，勿暴露公网（协议 §9）

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "test": "node --test",
@@ -17,7 +17,7 @@
     "start": "node src/index.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.0.0",
+    "better-sqlite3": "^13.0.3",
     "express": "^4.19.0",
     "jsonwebtoken": "^9.0.2",
     "mqtt": "^5.0.0"
