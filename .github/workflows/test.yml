@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: write # 失败时把测试日志推到 ci-logs 分支（公开仓库内容 API 可读，免登录排查）
+
 jobs:
   test:
     runs-on: ubuntu-24.04 # 钉住版本，避开 ubuntu-latest 静默迁移（2026-10-19 起切 26）
@@ -43,6 +46,21 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           SUM=$(grep -E '✖|not ok|Error:|AssertionError|ℹ (tests|pass|fail)' test-output.log | tail -12 | cut -c1-260 | tr '\n' '|')
           echo "::error::${SUM:0:3900}"
+      - name: 失败时把完整测试日志推到 ci-logs 分支（API 可读）
+        if: failure()
+        shell: bash
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          cp hub/test-output.log /tmp/ci-test-output.log
+          git fetch origin ci-logs 2>/dev/null || true
+          git checkout -B ci-logs
+          mkdir -p logs
+          cp /tmp/ci-test-output.log "logs/test-node${{ matrix.node-version }}.log"
+          git add -f logs/
+          git commit -m "ci log: node ${{ matrix.node-version }} @ ${GITHUB_SHA::7}" || true
+          git push -f origin ci-logs
       - name: 冒烟：中枢能启动并监听端口
         run: |
           node scripts/dev.js &
